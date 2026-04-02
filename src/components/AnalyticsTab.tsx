@@ -1,3 +1,7 @@
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine, Cell, PieChart, Pie, Legend,
+} from 'recharts'
 import type { DayData } from '../types'
 import { computeWeeklyStats, computeAllTimeStats, allLTSessions } from '../utils/analytics'
 import { formatDate, parseISO } from '../utils/dates'
@@ -7,100 +11,91 @@ interface Props {
   startDate: string
 }
 
-const INTENSITY_COLOR: Record<string, string> = {
-  '60-70%': '#3dba6e',
-  '70-80%': '#6c8aff',
-  '80-90%': '#f0a930',
-  '90-100%': '#e05555',
+const C = {
+  accent: '#6c8aff',
+  green: '#3dba6e',
+  amber: '#f0a930',
+  red: '#e05555',
+  text2: '#9090a8',
+  border: '#2e2e3a',
+  bg3: '#24242d',
 }
 
-function pct(rate: number) {
-  return `${Math.round(rate * 100)}%`
+const INTENSITY_COLORS: Record<string, string> = {
+  '60-70%': C.green,
+  '70-80%': C.accent,
+  '80-90%': C.amber,
+  '90-100%': C.red,
 }
 
-function BarChart({
-  rows,
-  maxVal,
-  unit,
-  colorFn,
-}: {
-  rows: { label: string; value: number; sub?: string }[]
-  maxVal: number
-  unit: string
-  colorFn?: (label: string) => string
-}) {
-  if (rows.length === 0) return <p className="analytics-empty">No data yet</p>
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="chart-rows">
-      {rows.map((r, i) => (
-        <div className="chart-row" key={i}>
-          <div className="chart-lbl" title={r.sub}>{r.label}</div>
-          <div className="chart-bar-wrap">
-            <div
-              className="chart-bar"
-              style={{
-                width: maxVal > 0 ? `${Math.max(4, Math.round((r.value / maxVal) * 100))}%` : '4%',
-                background: colorFn ? colorFn(r.label) : undefined,
-              }}
-            >
-              <span>{r.value}{unit}</span>
-            </div>
-          </div>
-        </div>
-      ))}
+    <div className="analytics-card">
+      <div className="analytics-card-title">{title}</div>
+      {children}
     </div>
   )
 }
+
+function EmptyChart() {
+  return <p className="analytics-empty">No data yet</p>
+}
+
+const tooltipStyle = {
+  contentStyle: { background: '#1a1a20', border: '1px solid #2e2e3a', borderRadius: 8, fontSize: 12 },
+  labelStyle: { color: '#e8e8f0' },
+  itemStyle: { color: '#9090a8' },
+}
+
+const axisProps = { stroke: C.text2, fontSize: 11, tickLine: false, axisLine: false }
 
 export default function AnalyticsTab({ data, startDate }: Props) {
   const weekly = computeWeeklyStats(data, startDate)
   const allTime = computeAllTimeStats(weekly, data)
   const ltSessions = allLTSessions(weekly)
 
-  const throwRows = weekly.map(w => ({
-    label: `Wk ${w.weekNumber}`,
-    value: w.totalThrows,
-  }))
-  const maxThrows = Math.max(...throwRows.map(r => r.value), 1)
+  // Weekly throws bar data
+  const throwData = weekly.map(w => ({ week: `W${w.weekNumber}`, throws: w.totalThrows }))
 
-  const ltRows = ltSessions.map(s => ({
-    label: formatDate(parseISO(s.date)),
-    value: s.maxDist,
-    sub: `${s.throws} throws`,
-  }))
-  const maxLT = Math.max(...ltRows.map(r => r.value), 1)
-
-  const moveRows = weekly.map(w => ({
-    label: `Wk ${w.weekNumber}`,
-    value: w.movementDays,
+  // Long toss distance — one point per session
+  const ltData = ltSessions.map(s => ({
+    date: formatDate(parseISO(s.date)),
+    dist: s.maxDist,
+    throws: s.throws,
   }))
 
-  // Intensity breakdown across all mound sessions
-  const intensityCounts: Record<string, number> = {
-    '60-70%': 0, '70-80%': 0, '80-90%': 0, '90-100%': 0,
-  }
-  weekly.forEach(w =>
-    w.moundSessions.forEach(s => {
-      intensityCounts[s.intensity] = (intensityCounts[s.intensity] ?? 0) + 1
-    })
-  )
-  const totalMound = weekly.reduce((n, w) => n + w.moundSessions.length, 0)
-  const intensityRows = Object.entries(intensityCounts)
-    .filter(([, n]) => n > 0)
-    .map(([label, value]) => ({ label, value }))
-  const maxIntensity = Math.max(...intensityRows.map(r => r.value), 1)
+  // Movement days per week
+  const moveData = weekly.map(w => ({
+    week: `W${w.weekNumber}`,
+    days: w.movementDays,
+    pct: Math.round((w.movementDays / 7) * 100),
+  }))
 
-  // Recovery per week
-  const recoveryRows = weekly
+  // Recovery rate per week (only weeks with throw sessions)
+  const recoveryData = weekly
     .filter(w => w.throwDays > 0)
     .map(w => ({
-      label: `Wk ${w.weekNumber}`,
-      value: w.throwDays > 0 ? Math.round((w.recoveryDone / w.throwDays) * 100) : 0,
+      week: `W${w.weekNumber}`,
+      rate: Math.round((w.recoveryDone / w.throwDays) * 100),
     }))
+
+  // Intensity pie data
+  const intensityMap: Record<string, number> = {}
+  weekly.forEach(w =>
+    w.moundSessions.forEach(s => {
+      intensityMap[s.intensity] = (intensityMap[s.intensity] ?? 0) + 1
+    })
+  )
+  const intensityData = Object.entries(intensityMap).map(([name, value]) => ({ name, value }))
+
+  function pct(rate: number) {
+    return `${Math.round(rate * 100)}%`
+  }
 
   return (
     <div className="tab-panel">
-      {/* All-time stat cards */}
+
+      {/* All-time stats */}
       <div className="analytics-stat-grid">
         <div className="analytics-stat">
           <span className="val">{allTime.totalThrows.toLocaleString()}</span>
@@ -112,7 +107,7 @@ export default function AnalyticsTab({ data, startDate }: Props) {
         </div>
         <div className="analytics-stat">
           <span className="val">{allTime.bestLTDistance > 0 ? `${allTime.bestLTDistance}m` : '—'}</span>
-          <span className="lbl">Best LT Distance</span>
+          <span className="lbl">Best LT Dist</span>
         </div>
         <div className="analytics-stat">
           <span className="val">{allTime.totalSessions}</span>
@@ -128,43 +123,120 @@ export default function AnalyticsTab({ data, startDate }: Props) {
         </div>
       </div>
 
-      {/* Throws per week */}
-      <div className="analytics-card">
-        <div className="analytics-card-title">Weekly Throw Volume</div>
-        <BarChart rows={throwRows} maxVal={maxThrows} unit=" throws" />
-      </div>
+      {/* Weekly throw volume */}
+      <Section title="Weekly Throw Volume">
+        {throwData.length === 0 ? <EmptyChart /> : (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={throwData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
+              <XAxis dataKey="week" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${v} throws`, 'Volume']} />
+              <Bar dataKey="throws" fill={C.accent} radius={[4, 4, 0, 0]} maxBarSize={40} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Section>
 
-      {/* Long toss distance per session */}
-      <div className="analytics-card">
-        <div className="analytics-card-title">Long Toss Max Distance (per session)</div>
-        <BarChart rows={ltRows} maxVal={maxLT} unit="m" />
-      </div>
+      {/* Long toss distance trend */}
+      <Section title="Long Toss Max Distance — per Session">
+        {ltData.length === 0 ? <EmptyChart /> : (
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={ltData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+              <XAxis dataKey="date" {...axisProps} />
+              <YAxis {...axisProps} unit="m" domain={['auto', 'auto']} />
+              <Tooltip
+                {...tooltipStyle}
+                formatter={(v: unknown) => [`${v}m`, 'Max distance']}
+              />
+              <Line
+                type="monotone"
+                dataKey="dist"
+                stroke={C.green}
+                strokeWidth={2}
+                dot={{ fill: C.green, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </Section>
 
       {/* Movement consistency */}
-      <div className="analytics-card">
-        <div className="analytics-card-title">Movement Practice — Full Days per Week</div>
-        <BarChart rows={moveRows} maxVal={7} unit="/7" />
-      </div>
+      <Section title="Movement Practice — Full Days per Week">
+        {moveData.length === 0 ? <EmptyChart /> : (
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={moveData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
+              <XAxis dataKey="week" {...axisProps} />
+              <YAxis {...axisProps} domain={[0, 7]} ticks={[0, 2, 4, 6, 7]} />
+              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${v}/7 days`, 'Full movement']} />
+              <ReferenceLine y={7} stroke={C.green} strokeDasharray="4 4" strokeOpacity={0.4} />
+              <Bar dataKey="days" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                {moveData.map((d, i) => (
+                  <Cell key={i} fill={d.days === 7 ? C.green : d.days >= 5 ? C.accent : C.amber} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Section>
 
-      {/* Recovery per week */}
-      {recoveryRows.length > 0 && (
-        <div className="analytics-card">
-          <div className="analytics-card-title">Post-Throw Recovery Rate (% per week)</div>
-          <BarChart rows={recoveryRows} maxVal={100} unit="%" />
-        </div>
+      {/* Recovery rate */}
+      {recoveryData.length > 0 && (
+        <Section title="Post-Throw Recovery Rate per Week">
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={recoveryData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+              <XAxis dataKey="week" {...axisProps} />
+              <YAxis {...axisProps} unit="%" domain={[0, 100]} />
+              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${v}%`, 'Recovery']} />
+              <ReferenceLine y={100} stroke={C.green} strokeDasharray="4 4" strokeOpacity={0.4} />
+              <Line
+                type="monotone"
+                dataKey="rate"
+                stroke={C.amber}
+                strokeWidth={2}
+                dot={{ fill: C.amber, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Section>
       )}
 
       {/* Intensity distribution */}
-      {totalMound > 0 && (
-        <div className="analytics-card">
-          <div className="analytics-card-title">Mound Intensity Distribution ({totalMound} sessions)</div>
-          <BarChart
-            rows={intensityRows}
-            maxVal={maxIntensity}
-            unit=" sessions"
-            colorFn={label => INTENSITY_COLOR[label] ?? 'var(--accent)'}
-          />
-        </div>
+      {intensityData.length > 0 && (
+        <Section title="Mound Intensity Distribution">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={intensityData}
+                cx="50%"
+                cy="45%"
+                innerRadius={50}
+                outerRadius={80}
+                dataKey="value"
+                label={({ name, percent }) =>
+                  `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`
+                }
+                labelLine={{ stroke: C.text2 }}
+                fontSize={11}
+              >
+                {intensityData.map((entry, i) => (
+                  <Cell key={i} fill={INTENSITY_COLORS[entry.name] ?? C.accent} />
+                ))}
+              </Pie>
+              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${v} sessions`, '']} />
+              <Legend
+                formatter={(value: string) => (
+                  <span style={{ color: C.text2, fontSize: 11 }}>{value}</span>
+                )}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </Section>
       )}
     </div>
   )
