@@ -14,10 +14,11 @@ import { MOVEMENT_KEYS } from './constants'
 import Onboarding from './components/Onboarding'
 import WeekTab from './components/WeekTab'
 import MilestonesTab from './components/MilestonesTab'
+import AnalyticsTab from './components/AnalyticsTab'
 import MilestoneModal from './components/MilestoneModal'
 import SettingsModal from './components/SettingsModal'
 
-type Tab = 'week' | 'milestones'
+type Tab = 'week' | 'milestones' | 'analytics'
 
 function prePopulate(): { data: DayData; milestones: Milestone[] } {
   const data: DayData = {}
@@ -145,13 +146,13 @@ export default function App() {
           </div>
         </div>
         <div className="tabs">
-          {(['week', 'milestones'] as Tab[]).map(tab => (
+          {(['week', 'milestones', 'analytics'] as Tab[]).map(tab => (
             <button
               key={tab}
               className={`tab-btn${activeTab === tab ? ' active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === 'week' ? 'Week' : 'Milestones'}
+              {tab === 'week' ? 'Week' : tab === 'milestones' ? 'Milestones' : 'Analytics'}
             </button>
           ))}
         </div>
@@ -171,6 +172,9 @@ export default function App() {
           milestones={milestones}
           onOpenModal={() => setMilestoneModalOpen(true)}
         />
+      )}
+      {activeTab === 'analytics' && (
+        <AnalyticsTab data={data} startDate={startDate} />
       )}
 
       <MilestoneModal
