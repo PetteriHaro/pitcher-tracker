@@ -80,19 +80,19 @@ export const MOVEMENT_EXERCISES: Record<MovementKey, Exercise[]> = {
   hips: [
     {
       name: "Prone hip internal rotation",
-      target: "30s/side",
+      target: "60s/side",
       description:
         "Face down, bend one knee to 90°. Pull ankle toward ceiling by rotating thigh inward. Work at end range.",
     },
     {
       name: "Groin foam rolling",
-      target: "60s/side",
+      target: "90s/side",
       description:
         "Face down, inner thigh on roller. Roll slowly from knee toward groin. Extra time on tender spots. Focus right side.",
     },
     {
       name: "90/90 hold with forward lean",
-      target: "30s/side",
+      target: "60s/side",
       description:
         "Both knees at 90°, lean chest over front shin. Deep hip external rotation stretch.",
     },
@@ -104,13 +104,25 @@ export const MOVEMENT_EXERCISES: Record<MovementKey, Exercise[]> = {
     },
     {
       name: "Half-kneeling hip flexor stretch",
-      target: "40s/side",
+      target: "60s/side",
       description:
         "Back knee down, squeeze glute, lean forward. Reach same-side arm overhead and lean away. Opens hip flexor, oblique, and lat.",
     },
     {
+      name: "Lateral split stretch",
+      target: "3 × 60s",
+      description:
+        "Stand with feet wide, slowly lower into a side split. Keep toes pointing forward, back straight. Ease deeper each hold.",
+    },
+    {
+      name: "Horizontal split stretch",
+      target: "3 × 60s",
+      description:
+        "From a lunge, extend back leg straight and slide front leg forward into a front split. Keep hips square and torso upright.",
+    },
+    {
       name: "Deep squat hold",
-      target: "60s",
+      target: "90s",
       description:
         "Feet wider than shoulders, toes out, sink deep. Elbows push knees out. Heels on floor.",
     },
