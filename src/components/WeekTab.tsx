@@ -20,6 +20,7 @@ interface Props {
   data: DayData;
   onDataChange: (iso: string, day: Day) => void;
   onWeekChange: (delta: number) => void;
+  onOpenGymTab: () => void;
 }
 
 export default function WeekTab({
@@ -28,6 +29,7 @@ export default function WeekTab({
   data,
   onDataChange,
   onWeekChange,
+  onOpenGymTab,
 }: Props) {
   const weekStart = addDays(
     getMondayOfWeek(parseISO(startDate).toDate()),
@@ -125,6 +127,7 @@ export default function WeekTab({
             onThrowChange={(key, val) => handleThrow(iso, key, val)}
             onThrowToggle={(type) => handleThrowToggle(iso, type)}
             onGymToggle={(val) => handleGymToggle(iso, val)}
+            onOpenGymTab={onOpenGymTab}
           />
         );
       })}

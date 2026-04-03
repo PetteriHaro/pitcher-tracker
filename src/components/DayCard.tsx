@@ -13,6 +13,7 @@ interface Props {
   onThrowChange: (key: keyof Throwing, val: Throwing[keyof Throwing]) => void;
   onGymToggle: (val: boolean) => void;
   onThrowToggle: (type: "javelin_longtoss" | "mound_bullpen" | null) => void;
+  onOpenGymTab: () => void;
 }
 
 export default function DayCard({
@@ -22,6 +23,7 @@ export default function DayCard({
   onThrowChange,
   onThrowToggle,
   onGymToggle,
+  onOpenGymTab,
 }: Props) {
   const [open, setOpen] = useState(isToday);
 
@@ -72,7 +74,7 @@ export default function DayCard({
             onChange={onThrowChange}
             onToggle={onThrowToggle}
           />
-          <GymSection gym={day.gym} onToggle={onGymToggle} />
+          <GymSection gym={day.gym} onToggle={onGymToggle} onOpenGymTab={onOpenGymTab} />
         </div>
       )}
     </div>

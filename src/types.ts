@@ -28,3 +28,16 @@ export interface Day {
 }
 
 export type DayData = Record<string, Day>;
+
+// Which exercises are scheduled per day (Tue/Thu/Fri/Sat)
+export type GymPlan = Record<string, string[]>;
+
+// A single logged entry: kg only, delta only, or both
+export interface GymEntry {
+  kg?: number;
+  sign?: "+" | "-";
+  delta?: number;
+}
+
+// Progress history per exercise name — shared across all days
+export type GymProgress = Record<string, GymEntry[]>;

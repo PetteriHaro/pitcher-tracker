@@ -1,9 +1,10 @@
 interface Props {
   gym: boolean;
   onToggle: (val: boolean) => void;
+  onOpenGymTab: () => void;
 }
 
-export default function GymSection({ gym, onToggle }: Props) {
+export default function GymSection({ gym, onToggle, onOpenGymTab }: Props) {
   return (
     <div className="section">
       <div className="section-title">Gym</div>
@@ -16,8 +17,11 @@ export default function GymSection({ gym, onToggle }: Props) {
               onChange={(e) => onToggle(e.target.checked)}
             />
             <div className="check-box" />
-            <span className="check-label">Gym</span>
+            <span className="check-label">Done</span>
           </label>
+          <button className="gym-open-btn" onClick={onOpenGymTab}>
+            Open Gym →
+          </button>
         </div>
       </div>
     </div>

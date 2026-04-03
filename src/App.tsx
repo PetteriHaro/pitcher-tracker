@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
-import type { DayData, Day } from "./types";
+import type { DayData, Day, GymPlan, GymProgress } from "./types";
 import {
   loadStartDate,
   saveStartDate,
   loadData,
   saveData,
+  loadGymPlan,
+  saveGymPlan,
+  loadGymProgress,
+  saveGymProgress,
 } from "./utils/storage";
 import {
   getMondayOfWeek,
@@ -20,9 +24,10 @@ import { MOVEMENT_KEYS } from "./constants";
 import Onboarding from "./components/Onboarding";
 import WeekTab from "./components/WeekTab";
 import AnalyticsTab from "./components/AnalyticsTab";
+import GymTab from "./components/GymTab";
 import SettingsModal from "./components/SettingsModal";
 
-type Tab = "week" | "analytics";
+type Tab = "week" | "gym" | "analytics";
 
 function prePopulate(): DayData {
   const data: DayData = {};
@@ -61,6 +66,8 @@ function prePopulate(): DayData {
 export default function App() {
   const [startDate, setStartDate] = useState<string | null>(loadStartDate);
   const [data, setData] = useState<DayData>(loadData);
+  const [gymPlan, setGymPlan] = useState<GymPlan>(loadGymPlan);
+  const [gymProgress, setGymProgress] = useState<GymProgress>(loadGymProgress);
   const [weekOffset, setWeekOffset] = useState(0);
   const [activeTab, setActiveTab] = useState<Tab>("week");
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -90,6 +97,22 @@ export default function App() {
     setData((prev) => {
       const next = { ...prev, [iso]: day };
       saveData(next);
+      return next;
+    });
+  }
+
+  function handleGymPlanChange(dayName: string, exercises: string[]) {
+    setGymPlan((prev) => {
+      const next = { ...prev, [dayName]: exercises };
+      saveGymPlan(next);
+      return next;
+    });
+  }
+
+  function handleGymProgressChange(exerciseName: string, history: GymProgress[string]) {
+    setGymProgress((prev) => {
+      const next: GymProgress = { ...prev, [exerciseName]: history };
+      saveGymProgress(next);
       return next;
     });
   }
@@ -143,13 +166,13 @@ export default function App() {
           </div>
         </div>
         <div className="tabs">
-          {(["week", "analytics"] as Tab[]).map((tab) => (
+          {(["week", "gym", "analytics"] as Tab[]).map((tab) => (
             <button
               key={tab}
               className={`tab-btn${activeTab === tab ? " active" : ""}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === "week" ? "Week" : "Analytics"}
+              {tab === "week" ? "Week" : tab === "gym" ? "Gym" : "Analytics"}
             </button>
           ))}
         </div>
@@ -162,6 +185,15 @@ export default function App() {
           data={data}
           onDataChange={handleDataChange}
           onWeekChange={(delta) => setWeekOffset((o) => o + delta)}
+          onOpenGymTab={() => setActiveTab("gym")}
+        />
+      )}
+      {activeTab === "gym" && (
+        <GymTab
+          gymPlan={gymPlan}
+          gymProgress={gymProgress}
+          onPlanChange={handleGymPlanChange}
+          onProgressChange={handleGymProgressChange}
         />
       )}
       {activeTab === "analytics" && (
