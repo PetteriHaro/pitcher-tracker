@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
-  footer?: React.ReactNode;
+  footer?: (close: () => void) => React.ReactNode;
 }
 
 export default function Modal({ title, onClose, children, footer }: Props) {
+  const [closing, setClosing] = useState(false);
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -15,15 +17,22 @@ export default function Modal({ title, onClose, children, footer }: Props) {
     };
   }, []);
 
+  function handleClose() {
+    setClosing(true);
+    setTimeout(onClose, 260);
+  }
+
   return (
     <div
-      className="modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className={`modal-overlay${closing ? " closing" : ""}`}
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       <div className="modal">
-        <div className="modal-title">{title}</div>
-        {children}
-        {footer && <div className="modal-actions">{footer}</div>}
+        <div className="modal-header">
+          <div className="modal-title">{title}</div>
+        </div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-actions">{footer(handleClose)}</div>}
       </div>
     </div>
   );

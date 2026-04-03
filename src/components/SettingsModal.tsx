@@ -42,10 +42,10 @@ export default function SettingsModal({
 
   if (!isOpen) return null;
 
-  function handleSave() {
+  function handleSave(close: () => void) {
     const mon = getMondayOfWeek(parseISO(value).toDate());
     onSave(toISO(mon.toDate()));
-    onClose();
+    close();
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -86,16 +86,16 @@ export default function SettingsModal({
     <Modal
       title="Settings"
       onClose={onClose}
-      footer={
+      footer={(close) => (
         <>
-          <button className="btn-secondary" onClick={onClose}>
+          <button className="btn-secondary" onClick={close}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={handleSave}>
+          <button className="btn-primary" onClick={() => handleSave(close)}>
             Save
           </button>
         </>
-      }
+      )}
     >
       <div
         className="field-row"

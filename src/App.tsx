@@ -38,9 +38,8 @@ function prePopulate(): DayData {
     workingThrows: 40,
     longTossMaxDistance: 50,
     postThrowRecovery: false,
-    notes: "Max consistent 46-48m. No javelin yet.",
   };
-  tue.gym = { done: false, notes: "" };
+  tue.gym = true;
   data["2026-04-01"] = tue;
 
   // Wednesday Apr 2
@@ -53,7 +52,6 @@ function prePopulate(): DayData {
     workingThrows: 40,
     intensity: "60-70%",
     postThrowRecovery: false,
-    notes: "",
   };
   data["2026-04-02"] = wed;
 

@@ -30,8 +30,7 @@ export function initDay(dateISO: string): Day {
             longTossMaxDistance: "",
             intensity: "70-80%",
             postThrowRecovery: false,
-            notes: "",
           },
-    gym: GYM_DAYS.includes(dayName) ? { done: false, notes: "" } : null,
+    gym: GYM_DAYS.includes(dayName),
   };
 }

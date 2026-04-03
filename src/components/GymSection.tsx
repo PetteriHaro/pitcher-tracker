@@ -1,27 +1,25 @@
-import type { Gym } from "../types";
-import Toggle from "./Toggle";
-
 interface Props {
-  gym: Gym | null;
-  onChange: (key: keyof Gym, val: Gym[keyof Gym]) => void;
+  gym: boolean;
+  onToggle: (val: boolean) => void;
 }
 
-export default function GymSection({ gym, onChange }: Props) {
-  if (!gym) return null;
-
+export default function GymSection({ gym, onToggle }: Props) {
   return (
     <div className="section">
       <div className="section-title">Gym</div>
-      <Toggle
-        label="Gym done"
-        checked={gym.done}
-        onChange={(val) => onChange("done", val)}
-      />
-      <textarea
-        placeholder="Optional notes..."
-        value={gym.notes}
-        onChange={(e) => onChange("notes", e.target.value)}
-      />
+      <div className="check-list">
+        <div className="check-row">
+          <label className="check-item">
+            <input
+              type="checkbox"
+              checked={gym}
+              onChange={(e) => onToggle(e.target.checked)}
+            />
+            <div className="check-box" />
+            <span className="check-label">Gym</span>
+          </label>
+        </div>
+      </div>
     </div>
   );
 }

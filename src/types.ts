@@ -17,12 +17,6 @@ export interface Throwing {
   longTossMaxDistance?: number | "";
   intensity?: Intensity;
   postThrowRecovery: boolean;
-  notes: string;
-}
-
-export interface Gym {
-  done: boolean;
-  notes: string;
 }
 
 export interface Day {
@@ -30,7 +24,7 @@ export interface Day {
   dayOfWeek: string;
   movement: Movement;
   throwing: Throwing | null;
-  gym: Gym | null;
+  gym: boolean;
 }
 
 export type DayData = Record<string, Day>;

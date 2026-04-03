@@ -1,31 +1,84 @@
+import { useState } from "react";
 import type { Throwing } from "../types";
 import { INTENSITY_OPTIONS } from "../constants";
-import Toggle from "./Toggle";
+import Modal from "./Modal";
+import { JAVELIN_PROGRAM, POST_THROW_RECOVERY } from "../throwingExercises";
 
 interface Props {
   throwing: Throwing | null;
   onChange: (key: keyof Throwing, val: Throwing[keyof Throwing]) => void;
+  onToggle: (type: "javelin_longtoss" | "mound_bullpen" | null) => void;
 }
 
-export default function ThrowingSection({ throwing, onChange }: Props) {
+export default function ThrowingSection({ throwing, onChange, onToggle }: Props) {
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [showJavelin, setShowJavelin] = useState(false);
+
   if (!throwing) {
-    return <p className="rest-msg">Rest day — movement practice only</p>;
+    return (
+      <div className="section">
+        <div className="section-title">Throwing</div>
+        <div className="add-session-btns">
+          <button
+            className="btn-add-session"
+            onClick={() => onToggle("javelin_longtoss")}
+          >
+            + Jav + LT
+          </button>
+          <button
+            className="btn-add-session"
+            onClick={() => onToggle("mound_bullpen")}
+          >
+            + Mound
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const isJavelin = throwing.type === "javelin_longtoss";
 
   return (
     <div className="section">
-      <div className="section-title">
-        {isJavelin ? "Javelin + Long Toss" : "Mound / Bullpen"}
+      <div className="section-header-row">
+        <div className="throw-type-tabs">
+          <button
+            className={`throw-type-tab${isJavelin ? " active" : ""}`}
+            onClick={() => onToggle("javelin_longtoss")}
+          >
+            Jav + LT
+          </button>
+          <button
+            className={`throw-type-tab${!isJavelin ? " active" : ""}`}
+            onClick={() => onToggle("mound_bullpen")}
+          >
+            Mound
+          </button>
+        </div>
+        <button className="btn-remove-section" onClick={() => onToggle(null)}>
+          Remove
+        </button>
       </div>
 
       {isJavelin && (
-        <Toggle
-          label="Javelin done"
-          checked={!!throwing.javelinDone}
-          onChange={(val) => onChange("javelinDone", val)}
-        />
+        <div className="check-row">
+          <label className="check-item">
+            <input
+              type="checkbox"
+              checked={!!throwing.javelinDone}
+              onChange={(e) => onChange("javelinDone", e.target.checked)}
+            />
+            <div className="check-box" />
+            <span className="check-label">Javelin</span>
+          </label>
+          <button
+            className="info-btn"
+            onClick={() => setShowJavelin(true)}
+            aria-label="Show javelin program"
+          >
+            ?
+          </button>
+        </div>
       )}
 
       <div className="field-row">
@@ -80,20 +133,72 @@ export default function ThrowingSection({ throwing, onChange }: Props) {
         </div>
       )}
 
-      <Toggle
-        label="Post-throw recovery"
-        checked={throwing.postThrowRecovery}
-        onChange={(val) => onChange("postThrowRecovery", val)}
-      />
-
-      <div className="section-title" style={{ marginTop: 10 }}>
-        Notes
+      <div className="check-row">
+        <label className="check-item">
+          <input
+            type="checkbox"
+            checked={throwing.postThrowRecovery}
+            onChange={(e) => onChange("postThrowRecovery", e.target.checked)}
+          />
+          <div className="check-box" />
+          <span className="check-label">Post-throw recovery</span>
+        </label>
+        <button
+          className="info-btn"
+          onClick={() => setShowRecovery(true)}
+          aria-label="Show post-throw recovery exercises"
+        >
+          ?
+        </button>
       </div>
-      <textarea
-        placeholder="Optional notes..."
-        value={throwing.notes}
-        onChange={(e) => onChange("notes", e.target.value)}
-      />
+
+      {showJavelin && (
+        <Modal
+          title="Javelin Program"
+          onClose={() => setShowJavelin(false)}
+          footer={(close) => (
+            <button className="btn-primary" onClick={close}>
+              Done
+            </button>
+          )}
+        >
+          <div className="exercise-list">
+            {JAVELIN_PROGRAM.map((ex) => (
+              <div className="exercise-item" key={ex.name}>
+                <div className="exercise-header">
+                  <span className="exercise-name">{ex.name}</span>
+                  <span className="exercise-target">{ex.target}</span>
+                </div>
+                <p className="exercise-desc">{ex.description}</p>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {showRecovery && (
+        <Modal
+          title="Post-Throw Recovery"
+          onClose={() => setShowRecovery(false)}
+          footer={(close) => (
+            <button className="btn-primary" onClick={close}>
+              Done
+            </button>
+          )}
+        >
+          <div className="exercise-list">
+            {POST_THROW_RECOVERY.map((ex) => (
+              <div className="exercise-item" key={ex.name}>
+                <div className="exercise-header">
+                  <span className="exercise-name">{ex.name}</span>
+                  <span className="exercise-target">{ex.target}</span>
+                </div>
+                <p className="exercise-desc">{ex.description}</p>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

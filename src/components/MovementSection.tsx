@@ -21,11 +21,11 @@ function ExerciseModal({
     <Modal
       title={MOVEMENT_LABELS[sectionKey]}
       onClose={onClose}
-      footer={
-        <button className="btn-primary" onClick={onClose}>
+      footer={(close) => (
+        <button className="btn-primary" onClick={close}>
           Done
         </button>
-      }
+      )}
     >
       <div className="exercise-list">
         {exercises.map((ex) => (

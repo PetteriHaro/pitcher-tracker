@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Day, Throwing, Gym } from "../types";
+import type { Day, Throwing } from "../types";
 import { MOVEMENT_KEYS, type MovementKey } from "../constants";
 import { formatDate, parseISO } from "../utils/dates";
 import MovementSection from "./MovementSection";
@@ -11,7 +11,8 @@ interface Props {
   isToday: boolean;
   onMovementChange: (key: MovementKey, val: boolean) => void;
   onThrowChange: (key: keyof Throwing, val: Throwing[keyof Throwing]) => void;
-  onGymChange: (key: keyof Gym, val: Gym[keyof Gym]) => void;
+  onGymToggle: (val: boolean) => void;
+  onThrowToggle: (type: "javelin_longtoss" | "mound_bullpen" | null) => void;
 }
 
 export default function DayCard({
@@ -19,7 +20,8 @@ export default function DayCard({
   isToday,
   onMovementChange,
   onThrowChange,
-  onGymChange,
+  onThrowToggle,
+  onGymToggle,
 }: Props) {
   const [open, setOpen] = useState(isToday);
 
@@ -65,8 +67,12 @@ export default function DayCard({
             movement={day.movement}
             onChange={onMovementChange}
           />
-          <ThrowingSection throwing={day.throwing} onChange={onThrowChange} />
-          <GymSection gym={day.gym} onChange={onGymChange} />
+          <ThrowingSection
+            throwing={day.throwing}
+            onChange={onThrowChange}
+            onToggle={onThrowToggle}
+          />
+          <GymSection gym={day.gym} onToggle={onGymToggle} />
         </div>
       )}
     </div>

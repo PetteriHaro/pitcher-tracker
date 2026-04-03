@@ -1,4 +1,4 @@
-import type { DayData, Day, Throwing, Gym } from "../types";
+import type { DayData, Day, Throwing, ThrowType } from "../types";
 import type { MovementKey } from "../constants";
 import {
   toISO,
@@ -65,10 +65,31 @@ export default function WeekTab({
     onDataChange(iso, { ...day, throwing: { ...day.throwing, [key]: val } });
   }
 
-  function handleGym(iso: string, key: keyof Gym, val: Gym[keyof Gym]) {
+  function handleThrowToggle(iso: string, type: ThrowType | null) {
     const day = getDay(iso);
-    if (!day.gym) return;
-    onDataChange(iso, { ...day, gym: { ...day.gym, [key]: val } });
+    if (type === null) {
+      onDataChange(iso, { ...day, throwing: null });
+    } else {
+      const existing = day.throwing;
+      onDataChange(iso, {
+        ...day,
+        throwing: existing
+          ? { ...existing, type }
+          : {
+              type,
+              javelinDone: false,
+              workingThrows: "",
+              longTossMaxDistance: "",
+              intensity: "70-80%",
+              postThrowRecovery: false,
+            },
+      });
+    }
+  }
+
+  function handleGymToggle(iso: string, val: boolean) {
+    const day = getDay(iso);
+    onDataChange(iso, { ...day, gym: val });
   }
 
   return (
@@ -102,7 +123,8 @@ export default function WeekTab({
             isToday={iso === todayISO}
             onMovementChange={(key, val) => handleMovement(iso, key, val)}
             onThrowChange={(key, val) => handleThrow(iso, key, val)}
-            onGymChange={(key, val) => handleGym(iso, key, val)}
+            onThrowToggle={(type) => handleThrowToggle(iso, type)}
+            onGymToggle={(val) => handleGymToggle(iso, val)}
           />
         );
       })}
