@@ -197,7 +197,7 @@ export default function App() {
         />
       )}
       {activeTab === "analytics" && (
-        <AnalyticsTab data={data} startDate={startDate} />
+        <AnalyticsTab data={data} startDate={startDate} gymProgress={gymProgress} />
       )}
 
       <SettingsModal

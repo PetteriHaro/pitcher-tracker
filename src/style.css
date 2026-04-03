@@ -849,6 +849,51 @@ button:focus-visible {
   text-align: center;
   padding: 8px 0;
 }
+.gym-analytics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.gym-analytics-row:last-child {
+  border-bottom: none;
+}
+.gym-analytics-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+.gym-analytics-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.gym-analytics-kg {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--amber);
+}
+.gym-analytics-delta {
+  font-size: 0.8rem;
+  color: var(--text2);
+}
+.gym-analytics-trend {
+  font-size: 0.7rem;
+}
+.gym-analytics-trend.up { color: var(--green); }
+.gym-analytics-trend.down { color: var(--red); }
+.gym-analytics-chart-label {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
 
 /* Flexible day sections */
 .add-session-btns {

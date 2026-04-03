@@ -14,7 +14,7 @@ import {
   Pie,
   Legend,
 } from "recharts";
-import type { DayData } from "../types";
+import type { DayData, GymProgress } from "../types";
 import {
   computeWeeklyStats,
   computeAllTimeStats,
@@ -25,6 +25,7 @@ import { formatDate, parseISO } from "../utils/dates";
 interface Props {
   data: DayData;
   startDate: string;
+  gymProgress: GymProgress;
 }
 
 const C = {
@@ -81,7 +82,8 @@ const axisProps = {
   axisLine: false,
 };
 
-export default function AnalyticsTab({ data, startDate }: Props) {
+
+export default function AnalyticsTab({ data, startDate, gymProgress }: Props) {
   const weekly = computeWeeklyStats(data, startDate);
   const allTime = computeAllTimeStats(weekly, data);
   const ltSessions = allLTSessions(weekly);
@@ -301,6 +303,86 @@ export default function AnalyticsTab({ data, startDate }: Props) {
           </ResponsiveContainer>
         </Section>
       )}
+
+      {/* Gym — current weights */}
+      {(() => {
+        const exercises = Object.entries(gymProgress).filter(([, h]) => h.length > 0);
+        if (exercises.length === 0) return null;
+        return (
+          <Section title="Gym — Current Weights">
+            {exercises.map(([name, history]) => {
+              const latest = history[history.length - 1];
+              const prev = history.length > 1 ? history[history.length - 2] : null;
+              const kgNow = latest.kg;
+              const kgPrev = prev?.kg;
+              const delta = latest.delta !== undefined
+                ? `${latest.sign}${latest.delta}`
+                : null;
+              return (
+                <div key={name} className="gym-analytics-row">
+                  <span className="gym-analytics-name">{name}</span>
+                  <span className="gym-analytics-right">
+                    {kgNow !== undefined && (
+                      <span className="gym-analytics-kg">{kgNow}kg</span>
+                    )}
+                    {delta && (
+                      <span className="gym-analytics-delta">{delta}</span>
+                    )}
+                    {kgNow !== undefined && kgPrev !== undefined && kgNow !== kgPrev && (
+                      <span className={kgNow > kgPrev ? "gym-analytics-trend up" : "gym-analytics-trend down"}>
+                        {kgNow > kgPrev ? "▲" : "▼"}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </Section>
+        );
+      })()}
+
+      {/* Gym — kg progression per exercise */}
+      {(() => {
+        const exercises = Object.entries(gymProgress).filter(
+          ([, h]) => h.filter((e) => e.kg !== undefined).length >= 2,
+        );
+        if (exercises.length === 0) return null;
+        return (
+          <Section title="Gym — Weight Progression">
+            {exercises.map(([name, history]) => {
+              const kgPoints = history
+                .filter((e) => e.kg !== undefined)
+                .map((e, i) => ({ i: i + 1, kg: e.kg as number }));
+              const min = Math.min(...kgPoints.map((p) => p.kg));
+              const max = Math.max(...kgPoints.map((p) => p.kg));
+              return (
+                <div key={name} style={{ marginBottom: 16 }}>
+                  <div className="gym-analytics-chart-label">{name}</div>
+                  <ResponsiveContainer width="100%" height={100}>
+                    <LineChart data={kgPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                      <XAxis dataKey="i" {...axisProps} hide />
+                      <YAxis {...axisProps} unit="kg" domain={[min - 2.5, max + 2.5]} />
+                      <Tooltip
+                        {...tooltipStyle}
+                        formatter={(v: unknown) => [`${v}kg`, name]}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="kg"
+                        stroke={C.amber}
+                        strokeWidth={2}
+                        dot={{ fill: C.amber, r: 3 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })}
+          </Section>
+        );
+      })()}
 
       {/* Intensity distribution */}
       {intensityData.length > 0 && (

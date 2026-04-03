@@ -15,7 +15,7 @@ export const GYM_EXERCISE_TEMPLATES: Record<string, string[]> = {
     "Forearms 3x20 / 3x10",
     "SS Good girl 3x10",
     "SS Bad girl 3x10",
-    "Abs",
+    "Abs 3x16",
   ],
   Fri: [
     "Assisted pull up 4x6",
