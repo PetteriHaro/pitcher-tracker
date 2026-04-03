@@ -1,17 +1,17 @@
-import { useState } from 'react'
-import { getMondayOfWeek, parseISO, toISO } from '../utils/dates'
+import { useState } from "react";
+import { getMondayOfWeek, parseISO, toISO } from "../utils/dates";
 
 interface Props {
-  onComplete: (startDateISO: string) => void
+  onComplete: (startDateISO: string) => void;
 }
 
 export default function Onboarding({ onComplete }: Props) {
-  const [value, setValue] = useState('2026-03-31')
+  const [value, setValue] = useState("2026-03-31");
 
   function handleStart() {
-    if (!value) return
-    const mon = getMondayOfWeek(parseISO(value).toDate())
-    onComplete(toISO(mon.toDate()))
+    if (!value) return;
+    const mon = getMondayOfWeek(parseISO(value).toDate());
+    onComplete(toISO(mon.toDate()));
   }
 
   return (
@@ -24,13 +24,17 @@ export default function Onboarding({ onComplete }: Props) {
           id="start-date"
           type="date"
           value={value}
-          onChange={e => setValue(e.target.value)}
-          style={{ width: '100%', marginBottom: 24 }}
+          onChange={(e) => setValue(e.target.value)}
+          style={{ width: "100%", marginBottom: 24 }}
         />
-        <button className="btn-primary" style={{ width: '100%' }} onClick={handleStart}>
+        <button
+          className="btn-primary"
+          style={{ width: "100%" }}
+          onClick={handleStart}
+        >
           Get Started
         </button>
       </div>
     </div>
-  )
+  );
 }

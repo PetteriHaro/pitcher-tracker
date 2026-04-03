@@ -1,69 +1,100 @@
-import type { DayData, Day, Throwing, Gym } from '../types'
-import type { MovementKey } from '../constants'
+import type { DayData, Day, Throwing, Gym } from "../types";
+import type { MovementKey } from "../constants";
 import {
-  toISO, addDays, getMondayOfWeek, weekNumberFor,
-  isDeloadWeek, formatDate, parseISO, today
-} from '../utils/dates'
-import { initDay } from '../utils/initDay'
-import WeeklySummary from './WeeklySummary'
-import DayCard from './DayCard'
+  toISO,
+  addDays,
+  getMondayOfWeek,
+  weekNumberFor,
+  isDeloadWeek,
+  formatDate,
+  parseISO,
+  today,
+} from "../utils/dates";
+import { initDay } from "../utils/initDay";
+import WeeklySummary from "./WeeklySummary";
+import DayCard from "./DayCard";
 
 interface Props {
-  weekOffset: number
-  startDate: string
-  data: DayData
-  onDataChange: (iso: string, day: Day) => void
-  onWeekChange: (delta: number) => void
+  weekOffset: number;
+  startDate: string;
+  data: DayData;
+  onDataChange: (iso: string, day: Day) => void;
+  onWeekChange: (delta: number) => void;
 }
 
-export default function WeekTab({ weekOffset, startDate, data, onDataChange, onWeekChange }: Props) {
-  const weekStart = addDays(getMondayOfWeek(parseISO(startDate).toDate()), weekOffset * 7)
-  const weekEnd = addDays(weekStart, 6)
-  const weekNum = weekNumberFor(toISO(weekStart), startDate)
-  const deload = isDeloadWeek(weekNum)
-  const todayISO = toISO(today().toDate())
+export default function WeekTab({
+  weekOffset,
+  startDate,
+  data,
+  onDataChange,
+  onWeekChange,
+}: Props) {
+  const weekStart = addDays(
+    getMondayOfWeek(parseISO(startDate).toDate()),
+    weekOffset * 7,
+  );
+  const weekEnd = addDays(weekStart, 6);
+  const weekNum = weekNumberFor(toISO(weekStart), startDate);
+  const deload = isDeloadWeek(weekNum);
+  const todayISO = toISO(today().toDate());
 
   const days = Array.from({ length: 7 }, (_, i) => {
-    const iso = toISO(addDays(weekStart, i).toDate())
-    return data[iso] ?? initDay(iso)
-  })
+    const iso = toISO(addDays(weekStart, i).toDate());
+    return data[iso] ?? initDay(iso);
+  });
 
   function getDay(iso: string): Day {
-    return data[iso] ?? initDay(iso)
+    return data[iso] ?? initDay(iso);
   }
 
   function handleMovement(iso: string, key: MovementKey, val: boolean) {
-    const day = { ...getDay(iso), movement: { ...getDay(iso).movement, [key]: val } }
-    onDataChange(iso, day)
+    const day = {
+      ...getDay(iso),
+      movement: { ...getDay(iso).movement, [key]: val },
+    };
+    onDataChange(iso, day);
   }
 
-  function handleThrow(iso: string, key: keyof Throwing, val: Throwing[keyof Throwing]) {
-    const day = getDay(iso)
-    if (!day.throwing) return
-    onDataChange(iso, { ...day, throwing: { ...day.throwing, [key]: val } })
+  function handleThrow(
+    iso: string,
+    key: keyof Throwing,
+    val: Throwing[keyof Throwing],
+  ) {
+    const day = getDay(iso);
+    if (!day.throwing) return;
+    onDataChange(iso, { ...day, throwing: { ...day.throwing, [key]: val } });
   }
 
   function handleGym(iso: string, key: keyof Gym, val: Gym[keyof Gym]) {
-    const day = getDay(iso)
-    if (!day.gym) return
-    onDataChange(iso, { ...day, gym: { ...day.gym, [key]: val } })
+    const day = getDay(iso);
+    if (!day.gym) return;
+    onDataChange(iso, { ...day, gym: { ...day.gym, [key]: val } });
   }
 
   return (
     <div className="tab-panel">
       <div className="week-nav">
-        <button className="nav-btn" onClick={() => onWeekChange(-1)}>‹</button>
+        <button className="nav-btn" onClick={() => onWeekChange(-1)}>
+          ‹
+        </button>
         <div className="week-label">
-          <strong>Week {weekNum}{deload ? ' · Deload' : ''}</strong>
-          <span>{formatDate(weekStart)} – {formatDate(weekEnd)}</span>
+          <strong>
+            Week {weekNum}
+            {deload ? " · Deload" : ""}
+          </strong>
+          <span>
+            {formatDate(weekStart)} – {formatDate(weekEnd)}
+          </span>
         </div>
-        <button className="nav-btn" onClick={() => onWeekChange(1)}>›</button>
+        <button className="nav-btn" onClick={() => onWeekChange(1)}>
+          ›
+        </button>
       </div>
 
       <WeeklySummary days={days} />
 
       {days.map((day, i) => {
-        const iso = toISO(addDays(weekStart, i).toDate())
+        const iso = toISO(addDays(weekStart, i).toDate());
         return (
           <DayCard
             key={iso}
@@ -73,8 +104,8 @@ export default function WeekTab({ weekOffset, startDate, data, onDataChange, onW
             onThrowChange={(key, val) => handleThrow(iso, key, val)}
             onGymChange={(key, val) => handleGym(iso, key, val)}
           />
-        )
+        );
       })}
     </div>
-  )
+  );
 }
