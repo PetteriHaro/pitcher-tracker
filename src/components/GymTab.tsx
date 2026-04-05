@@ -116,18 +116,21 @@ function DayPlanCard({
   dayName,
   exercises,
   gymProgress,
+  suggestions,
   onExerciseTap,
   onPlanChange,
 }: {
   dayName: string;
   exercises: GymExercise[];
   gymProgress: GymProgress;
+  suggestions: string[];
   onExerciseTap: (exercise: GymExercise) => void;
   onPlanChange: (exercises: GymExercise[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
   const [editingNameVal, setEditingNameVal] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   function startEditName(i: number) {
     setEditingNameIdx(i);
@@ -164,17 +167,57 @@ function DayPlanCard({
             return (
               <div key={ex.id} className="gym-plan-row" onClick={() => { if (!isEditing && ex.name) onExerciseTap(ex); }}>
                 {isEditing ? (
-                  <input
-                    className="gym-name-input"
-                    value={editingNameVal}
-                    onChange={(e) => setEditingNameVal(e.target.value)}
-                    onBlur={() => commitName(i)}
-                    onKeyDown={(e) => { if (e.key === "Enter") commitName(i); if (e.key === "Escape") setEditingNameIdx(null); }}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  <div className="gym-name-input-wrap" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      className="gym-name-input"
+                      value={editingNameVal}
+                      onChange={(e) => { setEditingNameVal(e.target.value); setShowSuggestions(true); }}
+                      onBlur={() => { setTimeout(() => { commitName(i); setShowSuggestions(false); }, 150); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { commitName(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditingNameIdx(null); setShowSuggestions(false); } }}
+                      autoFocus
+                    />
+                    {showSuggestions && (() => {
+                      const q = editingNameVal.trim().toLowerCase();
+                      const matches = suggestions.filter((s) => s.toLowerCase().includes(q) && s !== editingNameVal);
+                      return matches.length > 0 ? (
+                        <div className="gym-suggestions">
+                          {matches.map((s) => (
+                            <div
+                              key={s}
+                              className="gym-suggestion-item"
+                              onMouseDown={(e) => { e.preventDefault(); setEditingNameVal(s); setShowSuggestions(false); }}
+                            >{s}</div>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
                 ) : (
                   <>
+                    <div className="gym-reorder-btns">
+                      <button
+                        type="button"
+                        className="gym-reorder-btn"
+                        disabled={i === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = [...exercises];
+                          [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                          onPlanChange(next);
+                        }}
+                      >▲</button>
+                      <button
+                        type="button"
+                        className="gym-reorder-btn"
+                        disabled={i === exercises.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = [...exercises];
+                          [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                          onPlanChange(next);
+                        }}
+                      >▼</button>
+                    </div>
                     <span className="gym-progress-name">{ex.name || <span style={{ color: "var(--border)" }}>Unnamed</span>}</span>
                     <span className="gym-progress-weights">{current ?? <span style={{ color: "var(--border)" }}>—</span>}</span>
                     <button
@@ -217,6 +260,11 @@ interface Props {
 export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressChange }: Props) {
   const [editing, setEditing] = useState<GymExercise | null>(null);
 
+  // All unique exercise names across all days — used for suggestions
+  const allExerciseNames = Array.from(
+    new Set(Object.values(gymPlan).flat().map((ex) => ex.name).filter(Boolean))
+  );
+
   return (
     <div className="tab-panel">
       {GYM_DAYS.map((dayName) => (
@@ -225,6 +273,7 @@ export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressC
           dayName={dayName}
           exercises={gymPlan[dayName] ?? []}
           gymProgress={gymProgress}
+          suggestions={allExerciseNames}
           onExerciseTap={setEditing}
           onPlanChange={(exs) => onPlanChange(dayName, exs)}
         />

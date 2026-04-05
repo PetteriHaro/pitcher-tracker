@@ -17,6 +17,10 @@
   margin: 0;
   padding: 0;
 }
+/* Prevent iOS auto-zoom on focus — requires font-size >= 16px on all inputs */
+input, select, textarea {
+  font-size: 16px !important;
+}
 html {
   font-size: 16px;
 }
@@ -1015,16 +1019,16 @@ button:focus-visible {
   background: none;
   border: none;
   color: var(--border);
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   cursor: pointer;
   padding: 0;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   line-height: 1;
 }
 .gym-delete-btn:active {
@@ -1040,7 +1044,7 @@ button:focus-visible {
   cursor: pointer;
   width: 100%;
   margin-top: 10px;
-  min-height: 40px;
+  min-height: 44px;
 }
 .gym-add-btn:active {
   background: var(--bg3);
@@ -1049,24 +1053,58 @@ button:focus-visible {
   background: none;
   border: none;
   color: var(--border);
-  font-size: 1rem;
+  font-size: 1.1rem;
   cursor: pointer;
   padding: 0;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   line-height: 1;
   margin-left: auto;
 }
 .gym-edit-name-btn:active {
   color: var(--amber);
 }
-.gym-name-input {
+.gym-reorder-btns {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+.gym-reorder-btn {
+  background: none;
+  border: none;
+  color: var(--border);
+  font-size: 0.6rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  line-height: 1;
+}
+.gym-reorder-btn:active {
+  color: var(--text1);
+}
+.gym-reorder-btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+.gym-name-input-wrap {
   flex: 1;
+  position: relative;
+  min-width: 0;
+}
+.gym-name-input {
+  width: 100%;
+  box-sizing: border-box;
   background: var(--bg3);
   border: 1px solid var(--amber);
   border-radius: 6px;
@@ -1074,6 +1112,27 @@ button:focus-visible {
   font-size: 0.9rem;
   padding: 4px 8px;
   min-width: 0;
+}
+.gym-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 100;
+  overflow: hidden;
+}
+.gym-suggestion-item {
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--text1);
+  cursor: pointer;
+}
+.gym-suggestion-item:active {
+  background: var(--bg3);
+  color: var(--amber);
 }
 .gym-section-label {
   font-size: 0.7rem;
