@@ -123,7 +123,7 @@ function DayPlanCard({
   dayName: string;
   exercises: GymExercise[];
   gymProgress: GymProgress;
-  suggestions: string[];
+  suggestions: GymExercise[];
   onExerciseTap: (exercise: GymExercise) => void;
   onPlanChange: (exercises: GymExercise[]) => void;
 }) {
@@ -142,7 +142,12 @@ function DayPlanCard({
     if (trimmed === "") {
       onPlanChange(exercises.filter((_, idx) => idx !== i));
     } else {
-      onPlanChange(exercises.map((ex, idx) => idx === i ? { ...ex, name: trimmed } : ex));
+      // Reuse the existing exercise's ID if the name matches one from suggestions,
+      // so history is preserved when adding an already-known exercise.
+      const existing = suggestions.find((s) => s.name === trimmed);
+      onPlanChange(exercises.map((ex, idx) =>
+        idx === i ? (existing ?? { ...ex, name: trimmed }) : ex
+      ));
     }
     setEditingNameIdx(null);
   }
@@ -178,15 +183,15 @@ function DayPlanCard({
                     />
                     {showSuggestions && (() => {
                       const q = editingNameVal.trim().toLowerCase();
-                      const matches = suggestions.filter((s) => s.toLowerCase().includes(q) && s !== editingNameVal);
+                      const matches = suggestions.filter((s) => s.name.toLowerCase().includes(q) && s.name !== editingNameVal);
                       return matches.length > 0 ? (
                         <div className="gym-suggestions">
                           {matches.map((s) => (
                             <div
-                              key={s}
+                              key={s.id}
                               className="gym-suggestion-item"
-                              onMouseDown={(e) => { e.preventDefault(); setEditingNameVal(s); setShowSuggestions(false); }}
-                            >{s}</div>
+                              onMouseDown={(e) => { e.preventDefault(); setEditingNameVal(s.name); setShowSuggestions(false); }}
+                            >{s.name}</div>
                           ))}
                         </div>
                       ) : null;
@@ -260,9 +265,12 @@ interface Props {
 export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressChange }: Props) {
   const [editing, setEditing] = useState<GymExercise | null>(null);
 
-  // All unique exercise names across all days — used for suggestions
-  const allExerciseNames = Array.from(
-    new Set(Object.values(gymPlan).flat().map((ex) => ex.name).filter(Boolean))
+  // All unique exercises across all days (deduplicated by id) — used for suggestions
+  const allExercises = Object.values(
+    Object.values(gymPlan).flat().reduce<Record<string, GymExercise>>((acc, ex) => {
+      if (ex.name && !acc[ex.id]) acc[ex.id] = ex;
+      return acc;
+    }, {})
   );
 
   return (
@@ -273,7 +281,7 @@ export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressC
           dayName={dayName}
           exercises={gymPlan[dayName] ?? []}
           gymProgress={gymProgress}
-          suggestions={allExerciseNames}
+          suggestions={allExercises}
           onExerciseTap={setEditing}
           onPlanChange={(exs) => onPlanChange(dayName, exs)}
         />
