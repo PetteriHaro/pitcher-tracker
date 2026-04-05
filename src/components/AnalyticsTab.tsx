@@ -26,6 +26,7 @@ interface Props {
   data: DayData;
   startDate: string;
   gymProgress: GymProgress;
+  gymExerciseNames: Record<string, string>;
 }
 
 const C = {
@@ -83,7 +84,7 @@ const axisProps = {
 };
 
 
-export default function AnalyticsTab({ data, startDate, gymProgress }: Props) {
+export default function AnalyticsTab({ data, startDate, gymProgress, gymExerciseNames }: Props) {
   const weekly = computeWeeklyStats(data, startDate);
   const allTime = computeAllTimeStats(weekly, data);
   const ltSessions = allLTSessions(weekly);
@@ -310,7 +311,7 @@ export default function AnalyticsTab({ data, startDate, gymProgress }: Props) {
         if (exercises.length === 0) return null;
         return (
           <Section title="Gym — Current Weights">
-            {exercises.map(([name, history]) => {
+            {exercises.map(([id, history]) => {
               const latest = history[history.length - 1];
               const prev = history.length > 1 ? history[history.length - 2] : null;
               const kgNow = latest.kg;
@@ -319,8 +320,8 @@ export default function AnalyticsTab({ data, startDate, gymProgress }: Props) {
                 ? `${latest.sign}${latest.delta}`
                 : null;
               return (
-                <div key={name} className="gym-analytics-row">
-                  <span className="gym-analytics-name">{name}</span>
+                <div key={id} className="gym-analytics-row">
+                  <span className="gym-analytics-name">{gymExerciseNames[id] ?? id}</span>
                   <span className="gym-analytics-right">
                     {kgNow !== undefined && (
                       <span className="gym-analytics-kg">{kgNow}kg</span>
@@ -349,15 +350,15 @@ export default function AnalyticsTab({ data, startDate, gymProgress }: Props) {
         if (exercises.length === 0) return null;
         return (
           <Section title="Gym — Weight Progression">
-            {exercises.map(([name, history]) => {
+            {exercises.map(([id, history]) => {
               const kgPoints = history
                 .filter((e) => e.kg !== undefined)
                 .map((e, i) => ({ i: i + 1, kg: e.kg as number }));
               const min = Math.min(...kgPoints.map((p) => p.kg));
               const max = Math.max(...kgPoints.map((p) => p.kg));
               return (
-                <div key={name} style={{ marginBottom: 16 }}>
-                  <div className="gym-analytics-chart-label">{name}</div>
+                <div key={id} style={{ marginBottom: 16 }}>
+                  <div className="gym-analytics-chart-label">{gymExerciseNames[id] ?? id}</div>
                   <ResponsiveContainer width="100%" height={100}>
                     <LineChart data={kgPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
@@ -365,7 +366,7 @@ export default function AnalyticsTab({ data, startDate, gymProgress }: Props) {
                       <YAxis {...axisProps} unit="kg" domain={[min - 2.5, max + 2.5]} />
                       <Tooltip
                         {...tooltipStyle}
-                        formatter={(v: unknown) => [`${v}kg`, name]}
+                        formatter={(v: unknown) => [`${v}kg`, gymExerciseNames[id] ?? id]}
                       />
                       <Line
                         type="monotone"

@@ -1,8 +1,11 @@
 import { useState } from "react";
-import type { GymPlan, GymProgress, GymEntry } from "../types";
-import { GYM_EXERCISE_TEMPLATES } from "../gymExercises";
+import type { GymExercise, GymPlan, GymProgress, GymEntry } from "../types";
 
 const GYM_DAYS = ["Tue", "Thu", "Fri", "Sat"] as const;
+
+function generateId(): string {
+  return `ex-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 function formatEntry(e: GymEntry): string {
   const parts: string[] = [];
@@ -24,7 +27,6 @@ function ProgressModal({
 }) {
   const last = history.length > 0 ? history[history.length - 1] : null;
   const [kg, setKg] = useState(last?.kg !== undefined ? String(last.kg) : "");
-  // deltaVal is a signed number; null means not set
   const [deltaVal, setDeltaVal] = useState<number | null>(
     last?.delta !== undefined
       ? (last.sign === "-" ? -last.delta : last.delta)
@@ -77,7 +79,6 @@ function ProgressModal({
                 placeholder="—"
                 min={0}
                 step={0.5}
-                autoFocus
               />
             </div>
             <div className="gym-entry-field">
@@ -119,12 +120,29 @@ function DayPlanCard({
   onPlanChange,
 }: {
   dayName: string;
-  exercises: string[];
+  exercises: GymExercise[];
   gymProgress: GymProgress;
-  onExerciseTap: (name: string) => void;
-  onPlanChange: (exercises: string[]) => void;
+  onExerciseTap: (exercise: GymExercise) => void;
+  onPlanChange: (exercises: GymExercise[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
+  const [editingNameVal, setEditingNameVal] = useState("");
+
+  function startEditName(i: number) {
+    setEditingNameIdx(i);
+    setEditingNameVal(exercises[i].name);
+  }
+
+  function commitName(i: number) {
+    const trimmed = editingNameVal.trim();
+    if (trimmed === "") {
+      onPlanChange(exercises.filter((_, idx) => idx !== i));
+    } else {
+      onPlanChange(exercises.map((ex, idx) => idx === i ? { ...ex, name: trimmed } : ex));
+    }
+    setEditingNameIdx(null);
+  }
 
   return (
     <div className={`day-card${open ? " open" : ""}`}>
@@ -139,13 +157,33 @@ function DayPlanCard({
       </div>
       {open && (
         <div className="day-body">
-          {exercises.map((name, i) => {
-            const history = gymProgress[name] ?? [];
+          {exercises.map((ex, i) => {
+            const history = gymProgress[ex.id] ?? [];
             const current = history.length > 0 ? formatEntry(history[history.length - 1]) : null;
+            const isEditing = editingNameIdx === i;
             return (
-              <div key={i} className="gym-plan-row" onClick={() => onExerciseTap(name)}>
-                <span className="gym-progress-name">{name}</span>
-                <span className="gym-progress-weights">{current ?? <span style={{ color: "var(--border)" }}>—</span>}</span>
+              <div key={ex.id} className="gym-plan-row" onClick={() => { if (!isEditing && ex.name) onExerciseTap(ex); }}>
+                {isEditing ? (
+                  <input
+                    className="gym-name-input"
+                    value={editingNameVal}
+                    onChange={(e) => setEditingNameVal(e.target.value)}
+                    onBlur={() => commitName(i)}
+                    onKeyDown={(e) => { if (e.key === "Enter") commitName(i); if (e.key === "Escape") setEditingNameIdx(null); }}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <span className="gym-progress-name">{ex.name || <span style={{ color: "var(--border)" }}>Unnamed</span>}</span>
+                    <span className="gym-progress-weights">{current ?? <span style={{ color: "var(--border)" }}>—</span>}</span>
+                    <button
+                      type="button"
+                      className="gym-edit-name-btn"
+                      onClick={(e) => { e.stopPropagation(); startEditName(i); }}
+                    >✎</button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="gym-delete-btn"
@@ -154,7 +192,13 @@ function DayPlanCard({
               </div>
             );
           })}
-          <button type="button" className="gym-add-btn" onClick={() => onPlanChange([...exercises, ""])}>
+          <button type="button" className="gym-add-btn" onClick={() => {
+            const newEx: GymExercise = { id: generateId(), name: "" };
+            const newExercises = [...exercises, newEx];
+            onPlanChange(newExercises);
+            setEditingNameIdx(newExercises.length - 1);
+            setEditingNameVal("");
+          }}>
             + Add exercise
           </button>
         </div>
@@ -166,12 +210,12 @@ function DayPlanCard({
 interface Props {
   gymPlan: GymPlan;
   gymProgress: GymProgress;
-  onPlanChange: (dayName: string, exercises: string[]) => void;
-  onProgressChange: (exerciseName: string, history: GymEntry[]) => void;
+  onPlanChange: (dayName: string, exercises: GymExercise[]) => void;
+  onProgressChange: (exerciseId: string, history: GymEntry[]) => void;
 }
 
 export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressChange }: Props) {
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<GymExercise | null>(null);
 
   return (
     <div className="tab-panel">
@@ -179,7 +223,7 @@ export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressC
         <DayPlanCard
           key={dayName}
           dayName={dayName}
-          exercises={gymPlan[dayName] ?? GYM_EXERCISE_TEMPLATES[dayName] ?? []}
+          exercises={gymPlan[dayName] ?? []}
           gymProgress={gymProgress}
           onExerciseTap={setEditing}
           onPlanChange={(exs) => onPlanChange(dayName, exs)}
@@ -188,11 +232,11 @@ export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressC
 
       {editing !== null && (
         <ProgressModal
-          name={editing}
-          history={gymProgress[editing] ?? []}
+          name={editing.name}
+          history={gymProgress[editing.id] ?? []}
           onAppend={(entry) => {
-            const prev = gymProgress[editing] ?? [];
-            onProgressChange(editing, [...prev, entry]);
+            const prev = gymProgress[editing.id] ?? [];
+            onProgressChange(editing.id, [...prev, entry]);
           }}
           onClose={() => setEditing(null)}
         />

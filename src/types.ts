@@ -29,8 +29,14 @@ export interface Day {
 
 export type DayData = Record<string, Day>;
 
+// An exercise with a stable ID and a mutable display name
+export interface GymExercise {
+  id: string;
+  name: string;
+}
+
 // Which exercises are scheduled per day (Tue/Thu/Fri/Sat)
-export type GymPlan = Record<string, string[]>;
+export type GymPlan = Record<string, GymExercise[]>;
 
 // A single logged entry: kg only, delta only, or both
 export interface GymEntry {
@@ -39,5 +45,5 @@ export interface GymEntry {
   delta?: number;
 }
 
-// Progress history per exercise name — shared across all days
+// Progress history per exercise ID — shared across all days
 export type GymProgress = Record<string, GymEntry[]>;

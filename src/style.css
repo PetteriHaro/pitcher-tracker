@@ -1045,6 +1045,36 @@ button:focus-visible {
 .gym-add-btn:active {
   background: var(--bg3);
 }
+.gym-edit-name-btn {
+  background: none;
+  border: none;
+  color: var(--border);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 6px;
+  line-height: 1;
+  margin-left: auto;
+}
+.gym-edit-name-btn:active {
+  color: var(--amber);
+}
+.gym-name-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  color: var(--text1);
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  min-width: 0;
+}
 .gym-section-label {
   font-size: 0.7rem;
   font-weight: 700;

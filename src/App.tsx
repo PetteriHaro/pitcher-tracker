@@ -9,7 +9,11 @@ import {
   saveGymPlan,
   loadGymProgress,
   saveGymProgress,
+  runGymMigrationV1,
 } from "./utils/storage";
+
+// Run once before any state is initialised
+runGymMigrationV1();
 import {
   getMondayOfWeek,
   weekNumberFor,
@@ -101,7 +105,7 @@ export default function App() {
     });
   }
 
-  function handleGymPlanChange(dayName: string, exercises: string[]) {
+  function handleGymPlanChange(dayName: string, exercises: GymPlan[string]) {
     setGymPlan((prev) => {
       const next = { ...prev, [dayName]: exercises };
       saveGymPlan(next);
@@ -109,9 +113,9 @@ export default function App() {
     });
   }
 
-  function handleGymProgressChange(exerciseName: string, history: GymProgress[string]) {
+  function handleGymProgressChange(exerciseId: string, history: GymProgress[string]) {
     setGymProgress((prev) => {
-      const next: GymProgress = { ...prev, [exerciseName]: history };
+      const next: GymProgress = { ...prev, [exerciseId]: history };
       saveGymProgress(next);
       return next;
     });
@@ -197,7 +201,14 @@ export default function App() {
         />
       )}
       {activeTab === "analytics" && (
-        <AnalyticsTab data={data} startDate={startDate} gymProgress={gymProgress} />
+        <AnalyticsTab
+          data={data}
+          startDate={startDate}
+          gymProgress={gymProgress}
+          gymExerciseNames={Object.fromEntries(
+            Object.values(gymPlan).flat().map((ex) => [ex.id, ex.name])
+          )}
+        />
       )}
 
       <SettingsModal
