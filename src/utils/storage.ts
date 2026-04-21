@@ -1,82 +1,287 @@
-import type { DayData, GymExercise, GymPlan, GymProgress } from "../types";
+import { supabase } from "./supabase";
+import type { Day, DayData, GymEntry, GymExercise, GymPlan, GymProgress } from "../types";
 
-export function loadStartDate(): string | null {
-  return localStorage.getItem("startDate");
+export interface LocalSnapshot {
+  startDate: string | null;
+  data: DayData;
+  gymPlan: GymPlan;
+  gymProgress: GymProgress;
 }
 
-export function saveStartDate(date: string): void {
-  localStorage.setItem("startDate", date);
+// ---------------------------------------------------------------------------
+// Row ↔ type converters
+// ---------------------------------------------------------------------------
+
+function dayToRow(userId: string, iso: string, day: Day) {
+  return {
+    user_id: userId,
+    date: iso,
+    day_of_week: day.dayOfWeek,
+    spine: day.movement.spine,
+    shoulders: day.movement.shoulders,
+    hips: day.movement.hips,
+    balance: day.movement.balance,
+    core: day.movement.core,
+    inversions: day.movement.inversions,
+    throw_type: day.throwing?.type ?? null,
+    javelin_done: day.throwing?.javelinDone ?? null,
+    working_throws:
+      day.throwing?.workingThrows === "" ? null : (day.throwing?.workingThrows ?? null),
+    long_toss_max_distance:
+      day.throwing?.longTossMaxDistance === ""
+        ? null
+        : (day.throwing?.longTossMaxDistance ?? null),
+    intensity: day.throwing?.intensity ?? null,
+    post_throw_recovery: day.throwing?.postThrowRecovery ?? null,
+    gym_done: day.gym,
+  };
 }
 
-export function loadData(): DayData {
-  const raw = localStorage.getItem("data");
-  return raw ? (JSON.parse(raw) as DayData) : {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToDay(row: Record<string, any>): Day {
+  return {
+    date: row.date,
+    dayOfWeek: row.day_of_week,
+    movement: {
+      spine: row.spine,
+      shoulders: row.shoulders,
+      hips: row.hips,
+      balance: row.balance,
+      core: row.core,
+      inversions: row.inversions,
+    },
+    throwing: row.throw_type
+      ? {
+          type: row.throw_type,
+          javelinDone: row.javelin_done ?? undefined,
+          workingThrows: row.working_throws ?? "",
+          longTossMaxDistance: row.long_toss_max_distance ?? "",
+          intensity: row.intensity ?? undefined,
+          postThrowRecovery: row.post_throw_recovery ?? false,
+        }
+      : null,
+    gym: row.gym_done,
+  };
 }
 
-export function saveData(data: DayData): void {
-  localStorage.setItem("data", JSON.stringify(data));
-}
+// ---------------------------------------------------------------------------
+// Load all user data on startup
+// ---------------------------------------------------------------------------
 
-export function loadGymPlan(): GymPlan {
-  const raw = localStorage.getItem("gymPlan");
-  if (!raw) return {};
-  return JSON.parse(raw) as GymPlan;
-}
+export async function loadAllUserData(userId: string): Promise<LocalSnapshot> {
+  const [profileRes, daysRes, exercisesRes, entriesRes] = await Promise.all([
+    supabase.from("user_profiles").select("start_date").eq("user_id", userId).single(),
+    supabase.from("training_days").select("*").eq("user_id", userId),
+    supabase.from("gym_exercises").select("*").eq("user_id", userId).order("sort_order"),
+    supabase.from("gym_entries").select("*").eq("user_id", userId).order("position"),
+  ]);
 
-export function saveGymPlan(plan: GymPlan): void {
-  localStorage.setItem("gymPlan", JSON.stringify(plan));
-}
+  const startDate: string | null = profileRes.data?.start_date ?? null;
 
-export function loadGymProgress(): GymProgress {
-  const raw = localStorage.getItem("gymProgress");
-  if (!raw) return {};
-  return JSON.parse(raw) as GymProgress;
-}
-
-export function saveGymProgress(progress: GymProgress): void {
-  localStorage.setItem("gymProgress", JSON.stringify(progress));
-}
-
-/**
- * One-shot migration from name-keyed gym data to ID-keyed.
- *
- * Old format:
- *   gymPlan:     Record<day, string[]>          (exercise names)
- *   gymProgress: Record<name, GymEntry[]>       (keyed by name)
- *
- * New format:
- *   gymPlan:     Record<day, GymExercise[]>     ({ id, name })
- *   gymProgress: Record<id, GymEntry[]>         (keyed by stable ID)
- *
- * Exercises that share the same name across days get the SAME id,
- * preserving shared history (matching old behaviour).
- *
- * Safe to call on every startup — skips immediately if already done.
- */
-export function runGymMigrationV1(): void {
-  if (localStorage.getItem("gymMigrationV1")) return;
-
-  const planRaw = localStorage.getItem("gymPlan");
-  const progressRaw = localStorage.getItem("gymProgress");
-
-  // Nothing to migrate
-  if (!planRaw && !progressRaw) {
-    localStorage.setItem("gymMigrationV1", "1");
-    return;
+  const data: DayData = {};
+  for (const row of daysRes.data ?? []) {
+    data[row.date] = rowToDay(row);
   }
 
-  // Check if plan is already in new format (first exercise is an object, not a string)
-  if (planRaw) {
-    const parsed = JSON.parse(planRaw) as Record<string, unknown[]>;
-    const firstDay = Object.values(parsed)[0];
-    if (firstDay && firstDay.length > 0 && typeof firstDay[0] === "object") {
-      // Already migrated
-      localStorage.setItem("gymMigrationV1", "1");
-      return;
+  const gymPlan: GymPlan = {};
+  for (const row of exercisesRes.data ?? []) {
+    if (!gymPlan[row.day_name]) gymPlan[row.day_name] = [];
+    gymPlan[row.day_name].push({ id: row.exercise_id, name: row.name });
+  }
+
+  const gymProgress: GymProgress = {};
+  for (const row of entriesRes.data ?? []) {
+    if (!gymProgress[row.exercise_id]) gymProgress[row.exercise_id] = [];
+    gymProgress[row.exercise_id].push({
+      kg: row.kg ?? undefined,
+      sign: row.sign ?? undefined,
+      delta: row.delta ?? undefined,
+    });
+  }
+
+  return { startDate, data, gymPlan, gymProgress };
+}
+
+// ---------------------------------------------------------------------------
+// Individual fire-and-forget saves
+// ---------------------------------------------------------------------------
+
+export function saveStartDate(userId: string, date: string | null): void {
+  supabase
+    .from("user_profiles")
+    .upsert({ user_id: userId, start_date: date }, { onConflict: "user_id" })
+    .then(({ error }) => { if (error) console.error("saveStartDate", error); });
+}
+
+export function saveDay(userId: string, iso: string, day: Day): void {
+  supabase
+    .from("training_days")
+    .upsert(dayToRow(userId, iso, day), { onConflict: "user_id,date" })
+    .then(({ error }) => { if (error) console.error("saveDay", error); });
+}
+
+export function saveGymPlanDay(
+  userId: string,
+  dayName: string,
+  exercises: GymExercise[],
+): void {
+  (async () => {
+    await supabase
+      .from("gym_exercises")
+      .delete()
+      .eq("user_id", userId)
+      .eq("day_name", dayName);
+    if (exercises.length > 0) {
+      await supabase.from("gym_exercises").insert(
+        exercises.map((ex, i) => ({
+          user_id: userId,
+          exercise_id: ex.id,
+          day_name: dayName,
+          name: ex.name,
+          sort_order: i,
+        })),
+      );
+    }
+  })().catch((e) => console.error("saveGymPlanDay", e));
+}
+
+export function saveGymProgressExercise(
+  userId: string,
+  exerciseId: string,
+  history: GymEntry[],
+): void {
+  (async () => {
+    await supabase
+      .from("gym_entries")
+      .delete()
+      .eq("user_id", userId)
+      .eq("exercise_id", exerciseId);
+    if (history.length > 0) {
+      await supabase.from("gym_entries").insert(
+        history.map((entry, i) => ({
+          user_id: userId,
+          exercise_id: exerciseId,
+          kg: entry.kg ?? null,
+          sign: entry.sign ?? null,
+          delta: entry.delta ?? null,
+          position: i,
+        })),
+      );
+    }
+  })().catch((e) => console.error("saveGymProgressExercise", e));
+}
+
+// ---------------------------------------------------------------------------
+// Bulk save — used during migration and JSON import
+// ---------------------------------------------------------------------------
+
+export async function saveAllUserData(
+  userId: string,
+  snapshot: LocalSnapshot,
+): Promise<void> {
+  await supabase
+    .from("user_profiles")
+    .upsert({ user_id: userId, start_date: snapshot.startDate }, { onConflict: "user_id" });
+
+  if (Object.keys(snapshot.data).length > 0) {
+    await supabase.from("training_days").upsert(
+      Object.entries(snapshot.data).map(([iso, day]) => dayToRow(userId, iso, day)),
+      { onConflict: "user_id,date" },
+    );
+  }
+
+  for (const [dayName, exercises] of Object.entries(snapshot.gymPlan)) {
+    await supabase
+      .from("gym_exercises")
+      .delete()
+      .eq("user_id", userId)
+      .eq("day_name", dayName);
+    if (exercises.length > 0) {
+      await supabase.from("gym_exercises").insert(
+        exercises.map((ex, i) => ({
+          user_id: userId,
+          exercise_id: ex.id,
+          day_name: dayName,
+          name: ex.name,
+          sort_order: i,
+        })),
+      );
     }
   }
 
-  // Build name → id map. Same name across days → same id.
+  for (const [exerciseId, history] of Object.entries(snapshot.gymProgress)) {
+    await supabase
+      .from("gym_entries")
+      .delete()
+      .eq("user_id", userId)
+      .eq("exercise_id", exerciseId);
+    if (history.length > 0) {
+      await supabase.from("gym_entries").insert(
+        history.map((entry, i) => ({
+          user_id: userId,
+          exercise_id: exerciseId,
+          kg: entry.kg ?? null,
+          sign: entry.sign ?? null,
+          delta: entry.delta ?? null,
+          position: i,
+        })),
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reset — deletes all rows for the user across all tables
+// ---------------------------------------------------------------------------
+
+export async function clearAllUserData(userId: string): Promise<void> {
+  await Promise.all([
+    supabase.from("user_profiles").delete().eq("user_id", userId),
+    supabase.from("training_days").delete().eq("user_id", userId),
+    supabase.from("gym_exercises").delete().eq("user_id", userId),
+    supabase.from("gym_entries").delete().eq("user_id", userId),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// localStorage migration helpers (read-only after initial call)
+// ---------------------------------------------------------------------------
+
+export function readLocalStorageSnapshot(): LocalSnapshot | null {
+  const startDate = localStorage.getItem("startDate");
+  if (!startDate) return null;
+
+  const dataRaw = localStorage.getItem("data");
+  const planRaw = localStorage.getItem("gymPlan");
+  const progressRaw = localStorage.getItem("gymProgress");
+
+  return {
+    startDate,
+    data: dataRaw ? (JSON.parse(dataRaw) as DayData) : {},
+    gymPlan: planRaw ? (JSON.parse(planRaw) as GymPlan) : {},
+    gymProgress: progressRaw ? (JSON.parse(progressRaw) as GymProgress) : {},
+  };
+}
+
+export function clearLocalStorage(): void {
+  for (const key of ["startDate", "data", "gymPlan", "gymProgress", "gymMigrationV1"]) {
+    localStorage.removeItem(key);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// In-memory gym V1 migration (name-keyed → ID-keyed)
+// Applied to a LocalSnapshot before uploading; never writes to localStorage.
+// ---------------------------------------------------------------------------
+
+export function applyGymMigrationV1(snapshot: LocalSnapshot): LocalSnapshot {
+  const planRaw = snapshot.gymPlan;
+  const firstDay = Object.values(planRaw)[0];
+  if (!firstDay || firstDay.length === 0 || typeof firstDay[0] === "object") {
+    // Already in new format
+    return snapshot;
+  }
+
   const nameToId: Record<string, string> = {};
   let counter = 0;
   function idForName(name: string): string {
@@ -86,26 +291,20 @@ export function runGymMigrationV1(): void {
     return nameToId[name];
   }
 
-  // Migrate plan
   const newPlan: GymPlan = {};
-  if (planRaw) {
-    const oldPlan = JSON.parse(planRaw) as Record<string, string[]>;
-    for (const [day, names] of Object.entries(oldPlan)) {
-      newPlan[day] = names.map((name): GymExercise => ({ id: idForName(name), name }));
-    }
-    saveGymPlan(newPlan);
+  for (const [day, exercises] of Object.entries(planRaw)) {
+    // exercises may be string[] (old) or GymExercise[] (new)
+    newPlan[day] = (exercises as unknown as string[]).map((e) => {
+      if (typeof e === "string") return { id: idForName(e), name: e };
+      return e as GymExercise;
+    });
   }
 
-  // Migrate progress: re-key by id
-  if (progressRaw) {
-    const oldProgress = JSON.parse(progressRaw) as Record<string, unknown>;
-    const newProgress: GymProgress = {};
-    for (const [key, history] of Object.entries(oldProgress)) {
-      const newKey = nameToId[key] ?? key; // unknown keys pass through
-      newProgress[newKey] = history as GymProgress[string];
-    }
-    saveGymProgress(newProgress);
+  const newProgress: GymProgress = {};
+  for (const [key, history] of Object.entries(snapshot.gymProgress)) {
+    const newKey = nameToId[key] ?? key;
+    newProgress[newKey] = history;
   }
 
-  localStorage.setItem("gymMigrationV1", "1");
+  return { ...snapshot, gymPlan: newPlan, gymProgress: newProgress };
 }

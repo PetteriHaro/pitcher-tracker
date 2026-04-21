@@ -1,21 +1,22 @@
 import { useState, useRef } from "react";
 import { getMondayOfWeek, parseISO, toISO } from "../utils/dates";
+import { supabase } from "../utils/supabase";
+import type { LocalSnapshot } from "../utils/storage";
+import type { DayData } from "../types";
 import Modal from "./Modal";
 
 interface Props {
   isOpen: boolean;
   startDate: string;
+  data: DayData;
   onClose: () => void;
   onSave: (newStartDate: string) => void;
-  onImport: () => void;
-  onReset: () => void;
+  onImport: (snapshot: LocalSnapshot) => Promise<void>;
+  onReset: () => Promise<void>;
 }
 
-function exportData() {
-  const payload: Record<string, string | null> = {};
-  for (const key of ["startDate", "data"]) {
-    payload[key] = localStorage.getItem(key);
-  }
+function exportData(startDate: string, data: DayData) {
+  const payload = { startDate, data };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
@@ -30,6 +31,7 @@ function exportData() {
 export default function SettingsModal({
   isOpen,
   startDate,
+  data,
   onClose,
   onSave,
   onImport,
@@ -38,6 +40,7 @@ export default function SettingsModal({
   const [value, setValue] = useState(startDate);
   const [importError, setImportError] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -48,38 +51,36 @@ export default function SettingsModal({
     close();
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportError("");
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
-        const parsed = JSON.parse(reader.result as string) as Record<
-          string,
-          string | null
-        >;
-        for (const key of ["startDate", "data"]) {
-          if (parsed[key] != null) {
-            localStorage.setItem(key, parsed[key]!);
-          } else {
-            localStorage.removeItem(key);
-          }
-        }
-        onImport();
+        const parsed = JSON.parse(reader.result as string) as LocalSnapshot;
+        if (!parsed.startDate && !parsed.data) throw new Error("invalid");
+        setImporting(true);
+        await onImport(parsed);
+        setImporting(false);
         onClose();
       } catch {
+        setImporting(false);
         setImportError("Invalid file — could not parse JSON.");
       }
     };
     reader.readAsText(file);
   }
 
-  function handleReset() {
-    localStorage.clear();
-    onReset();
+  async function handleReset() {
+    await onReset();
     setConfirmReset(false);
     onClose();
+  }
+
+  async function handleSignOut() {
+    onClose();
+    await supabase.auth.signOut();
   }
 
   return (
@@ -116,14 +117,15 @@ export default function SettingsModal({
         Data
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <button className="btn-secondary" onClick={exportData}>
+        <button className="btn-secondary" onClick={() => exportData(startDate, data)}>
           Export data (JSON)
         </button>
         <button
           className="btn-secondary"
           onClick={() => fileRef.current?.click()}
+          disabled={importing}
         >
-          Import data (JSON)
+          {importing ? "Importing…" : "Import data (JSON)"}
         </button>
         <input
           ref={fileRef}
@@ -133,9 +135,7 @@ export default function SettingsModal({
           onChange={handleFileChange}
         />
         {importError && (
-          <span style={{ fontSize: "0.8rem", color: "var(--red)" }}>
-            {importError}
-          </span>
+          <span style={{ fontSize: "0.8rem", color: "var(--red)" }}>{importError}</span>
         )}
 
         <div style={{ borderTop: "1px solid var(--border)", marginTop: 4 }} />
@@ -153,10 +153,7 @@ export default function SettingsModal({
               This cannot be undone.
             </p>
             <div className="reset-confirm-actions">
-              <button
-                className="btn-secondary"
-                onClick={() => setConfirmReset(false)}
-              >
+              <button className="btn-secondary" onClick={() => setConfirmReset(false)}>
                 Keep data
               </button>
               <button className="btn-danger-solid" onClick={handleReset}>
@@ -165,6 +162,12 @@ export default function SettingsModal({
             </div>
           </div>
         )}
+
+        <div style={{ borderTop: "1px solid var(--border)", marginTop: 4 }} />
+
+        <button className="btn-secondary" onClick={handleSignOut}>
+          Sign out
+        </button>
       </div>
     </Modal>
   );

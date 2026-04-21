@@ -1281,3 +1281,109 @@ button:focus-visible {
 .gym-open-btn:active {
   background: var(--bg3);
 }
+
+/* ── Login screen ─────────────────────────────────────────────────────────── */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+.login-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.login-icon {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.login-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+.login-sub {
+  font-size: 0.85rem;
+  color: var(--text2);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.login-input {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 12px 14px;
+  width: 100%;
+}
+.login-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.login-btn {
+  width: 100%;
+}
+.login-error {
+  font-size: 0.8rem;
+  color: var(--red);
+  text-align: center;
+}
+.login-back {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 4px;
+  text-align: left;
+}
+.login-back:hover {
+  color: var(--text);
+}
+.login-migrate-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 8px;
+}
+.login-migrate-label {
+  font-size: 0.8rem;
+  color: var(--text2);
+  text-align: center;
+}

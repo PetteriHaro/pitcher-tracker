@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
 import type { DayData, Day, GymPlan, GymProgress } from "./types";
 import {
-  loadStartDate,
+  loadAllUserData,
   saveStartDate,
-  loadData,
-  saveData,
-  loadGymPlan,
-  saveGymPlan,
-  loadGymProgress,
-  saveGymProgress,
-  runGymMigrationV1,
+  saveDay,
+  saveGymPlanDay,
+  saveGymProgressExercise,
+  saveAllUserData,
+  clearAllUserData,
+  readLocalStorageSnapshot,
+  clearLocalStorage,
+  applyGymMigrationV1,
+  type LocalSnapshot,
 } from "./utils/storage";
-
-// Run once before any state is initialised
-runGymMigrationV1();
+import { supabase } from "./utils/supabase";
 import {
   getMondayOfWeek,
   weekNumberFor,
@@ -25,6 +25,7 @@ import {
 } from "./utils/dates";
 import { initDay } from "./utils/initDay";
 import { MOVEMENT_KEYS } from "./constants";
+import LoginScreen, { hasPendingMigration, clearMigrationFlag } from "./components/LoginScreen";
 import Onboarding from "./components/Onboarding";
 import WeekTab from "./components/WeekTab";
 import AnalyticsTab from "./components/AnalyticsTab";
@@ -32,15 +33,13 @@ import GymTab from "./components/GymTab";
 import SettingsModal from "./components/SettingsModal";
 
 type Tab = "week" | "gym" | "analytics";
+type AppState = "loading" | "unauthenticated" | "ready";
 
 function prePopulate(): DayData {
   const data: DayData = {};
 
-  // Tuesday Apr 1
   const tue = initDay("2026-04-01");
-  MOVEMENT_KEYS.forEach((k) => {
-    tue.movement[k] = true;
-  });
+  MOVEMENT_KEYS.forEach((k) => { tue.movement[k] = true; });
   tue.throwing = {
     type: "javelin_longtoss",
     javelinDone: false,
@@ -51,11 +50,8 @@ function prePopulate(): DayData {
   tue.gym = true;
   data["2026-04-01"] = tue;
 
-  // Wednesday Apr 2
   const wed = initDay("2026-04-02");
-  MOVEMENT_KEYS.forEach((k) => {
-    wed.movement[k] = true;
-  });
+  MOVEMENT_KEYS.forEach((k) => { wed.movement[k] = true; });
   wed.throwing = {
     type: "mound_bullpen",
     workingThrows: 40,
@@ -68,13 +64,62 @@ function prePopulate(): DayData {
 }
 
 export default function App() {
-  const [startDate, setStartDate] = useState<string | null>(loadStartDate);
-  const [data, setData] = useState<DayData>(loadData);
-  const [gymPlan, setGymPlan] = useState<GymPlan>(loadGymPlan);
-  const [gymProgress, setGymProgress] = useState<GymProgress>(loadGymProgress);
+  const [appState, setAppState] = useState<AppState>("loading");
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [data, setData] = useState<DayData>({});
+  const [gymPlan, setGymPlan] = useState<GymPlan>({});
+  const [gymProgress, setGymProgress] = useState<GymProgress>({});
   const [weekOffset, setWeekOffset] = useState(0);
   const [activeTab, setActiveTab] = useState<Tab>("week");
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
+  function hydrateState(snapshot: LocalSnapshot) {
+    setStartDate(snapshot.startDate);
+    setData(snapshot.data);
+    setGymPlan(snapshot.gymPlan);
+    setGymProgress(snapshot.gymProgress);
+  }
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session) {
+          setAppState("unauthenticated");
+          setUserId(null);
+          setStartDate(null);
+          setData({});
+          setGymPlan({});
+          setGymProgress({});
+          return;
+        }
+
+        const uid = session.user.id;
+        setUserId(uid);
+
+        const snapshot = await loadAllUserData(uid);
+
+        // Auto-migrate if the user signed in via the migrate flow
+        if (hasPendingMigration()) {
+          clearMigrationFlag();
+          const lsSnapshot = readLocalStorageSnapshot();
+          if (lsSnapshot) {
+            const migrated = applyGymMigrationV1(lsSnapshot);
+            await saveAllUserData(uid, migrated);
+            clearLocalStorage();
+            hydrateState(migrated);
+            setAppState("ready");
+            return;
+          }
+        }
+
+        hydrateState(snapshot);
+        setAppState("ready");
+      },
+    );
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!startDate) return;
@@ -85,55 +130,76 @@ export default function App() {
   }, [startDate]);
 
   function handleSetStartDate(iso: string) {
-    let d = loadData();
-
+    if (!userId) return;
+    let d = data;
     if (iso === "2026-03-31" && Object.keys(d).length === 0) {
       d = prePopulate();
-      saveData(d);
       setData(d);
+      saveAllUserData(userId, { startDate: iso, data: d, gymPlan, gymProgress });
+    } else {
+      saveStartDate(userId, iso);
     }
-
-    saveStartDate(iso);
     setStartDate(iso);
   }
 
   function handleDataChange(iso: string, day: Day) {
+    if (!userId) return;
     setData((prev) => {
       const next = { ...prev, [iso]: day };
-      saveData(next);
+      saveDay(userId, iso, day);
       return next;
     });
   }
 
   function handleGymPlanChange(dayName: string, exercises: GymPlan[string]) {
+    if (!userId) return;
     setGymPlan((prev) => {
       const next = { ...prev, [dayName]: exercises };
-      saveGymPlan(next);
+      saveGymPlanDay(userId, dayName, exercises);
       return next;
     });
   }
 
   function handleGymProgressChange(exerciseId: string, history: GymProgress[string]) {
+    if (!userId) return;
     setGymProgress((prev) => {
       const next: GymProgress = { ...prev, [exerciseId]: history };
-      saveGymProgress(next);
+      saveGymProgressExercise(userId, exerciseId, history);
       return next;
     });
   }
 
   function handleSaveSettings(newStartDate: string) {
-    saveStartDate(newStartDate);
+    if (!userId) return;
+    saveStartDate(userId, newStartDate);
     setStartDate(newStartDate);
   }
 
-  function handleImport() {
-    setData(loadData());
-    setStartDate(loadStartDate());
+  async function handleImport(snapshot: LocalSnapshot) {
+    if (!userId) return;
+    await saveAllUserData(userId, snapshot);
+    hydrateState(snapshot);
   }
 
-  function handleReset() {
-    setData({});
+  async function handleReset() {
+    if (!userId) return;
+    await clearAllUserData(userId);
     setStartDate(null);
+    setData({});
+    setGymPlan({});
+    setGymProgress({});
+  }
+
+  if (appState === "loading") {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner" />
+      </div>
+    );
+  }
+
+  if (appState === "unauthenticated") {
+    return <LoginScreen />;
   }
 
   const todayISO = toISO(today().toDate());
@@ -145,9 +211,7 @@ export default function App() {
         ).toDate(),
       )
     : todayISO;
-  const currentWeekNum = startDate
-    ? weekNumberFor(currentWeekISO, startDate)
-    : 1;
+  const currentWeekNum = startDate ? weekNumberFor(currentWeekISO, startDate) : 1;
   const deload = isDeloadWeek(currentWeekNum);
 
   if (!startDate) {
@@ -161,10 +225,7 @@ export default function App() {
           <span className="app-title">Pitcher Tracker</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {deload && <span className="deload-badge">Deload</span>}
-            <button
-              className="settings-btn"
-              onClick={() => setSettingsModalOpen(true)}
-            >
+            <button className="settings-btn" onClick={() => setSettingsModalOpen(true)}>
               ⚙️
             </button>
           </div>
@@ -206,7 +267,7 @@ export default function App() {
           startDate={startDate}
           gymProgress={gymProgress}
           gymExerciseNames={Object.fromEntries(
-            Object.values(gymPlan).flat().map((ex) => [ex.id, ex.name])
+            Object.values(gymPlan).flat().map((ex) => [ex.id, ex.name]),
           )}
         />
       )}
@@ -214,6 +275,7 @@ export default function App() {
       <SettingsModal
         isOpen={settingsModalOpen}
         startDate={startDate}
+        data={data}
         onClose={() => setSettingsModalOpen(false)}
         onSave={handleSaveSettings}
         onImport={handleImport}
