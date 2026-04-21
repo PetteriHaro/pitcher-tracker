@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { Checkbox, NumberInput, Select, Button, Modal, Group } from "@mantine/core";
 import type { Throwing } from "../types";
 import { INTENSITY_OPTIONS } from "../constants";
-import Modal from "./Modal";
 import { JAVELIN_PROGRAM, POST_THROW_RECOVERY } from "../throwingExercises";
 
 interface Props {
@@ -19,18 +19,20 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
       <div className="section">
         <div className="section-title">Throwing</div>
         <div className="add-session-btns">
-          <button
-            className="btn-add-session"
+          <Button
+            variant="light"
+            color="accent"
             onClick={() => onToggle("javelin_longtoss")}
           >
             + Jav + LT
-          </button>
-          <button
-            className="btn-add-session"
+          </Button>
+          <Button
+            variant="light"
+            color="accent"
             onClick={() => onToggle("mound_bullpen")}
           >
             + Mound
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -62,15 +64,14 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
 
       {isJavelin && (
         <div className="check-row">
-          <label className="check-item">
-            <input
-              type="checkbox"
-              checked={!!throwing.javelinDone}
-              onChange={(e) => onChange("javelinDone", e.target.checked)}
-            />
-            <div className="check-box" />
-            <span className="check-label">Javelin</span>
-          </label>
+          <Checkbox
+            size="md"
+            color="accent"
+            label="Javelin"
+            checked={!!throwing.javelinDone}
+            onChange={(e) => onChange("javelinDone", e.currentTarget.checked)}
+            style={{ flex: 1 }}
+          />
           <button
             className="info-btn"
             onClick={() => setShowJavelin(true)}
@@ -83,36 +84,38 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
 
       <div className="field-row">
         <span className="field-label">Working throws</span>
-        <input
-          type="number"
+        <NumberInput
           min={0}
           max={500}
-          value={throwing.workingThrows}
+          value={throwing.workingThrows === "" ? "" : throwing.workingThrows}
           placeholder="0"
-          onChange={(e) =>
+          hideControls
+          onChange={(v) =>
             onChange(
               "workingThrows",
-              e.target.value === "" ? "" : +e.target.value,
+              v === "" || v === undefined ? "" : Number(v),
             )
           }
+          style={{ width: 110 }}
         />
       </div>
 
       {isJavelin && (
         <div className="field-row">
           <span className="field-label">Max distance (m)</span>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             max={200}
-            value={throwing.longTossMaxDistance ?? ""}
+            value={throwing.longTossMaxDistance === "" ? "" : (throwing.longTossMaxDistance ?? "")}
             placeholder="0"
-            onChange={(e) =>
+            hideControls
+            onChange={(v) =>
               onChange(
                 "longTossMaxDistance",
-                e.target.value === "" ? "" : +e.target.value,
+                v === "" || v === undefined ? "" : Number(v),
               )
             }
+            style={{ width: 110 }}
           />
         </div>
       )}
@@ -120,29 +123,27 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
       {!isJavelin && (
         <div className="field-row">
           <span className="field-label">Intensity</span>
-          <select
+          <Select
             value={throwing.intensity ?? "70-80%"}
-            onChange={(e) =>
-              onChange("intensity", e.target.value as Throwing["intensity"])
+            onChange={(v) =>
+              v && onChange("intensity", v as Throwing["intensity"])
             }
-          >
-            {INTENSITY_OPTIONS.map((opt) => (
-              <option key={opt}>{opt}</option>
-            ))}
-          </select>
+            data={INTENSITY_OPTIONS.map((o) => ({ value: o, label: o }))}
+            allowDeselect={false}
+            style={{ width: 140 }}
+          />
         </div>
       )}
 
       <div className="check-row">
-        <label className="check-item">
-          <input
-            type="checkbox"
-            checked={throwing.postThrowRecovery}
-            onChange={(e) => onChange("postThrowRecovery", e.target.checked)}
-          />
-          <div className="check-box" />
-          <span className="check-label">Post-throw recovery</span>
-        </label>
+        <Checkbox
+          size="md"
+          color="accent"
+          label="Post-throw recovery"
+          checked={throwing.postThrowRecovery}
+          onChange={(e) => onChange("postThrowRecovery", e.currentTarget.checked)}
+          style={{ flex: 1 }}
+        />
         <button
           className="info-btn"
           onClick={() => setShowRecovery(true)}
@@ -152,53 +153,51 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
         </button>
       </div>
 
-      {showJavelin && (
-        <Modal
-          title="Javelin Program"
-          onClose={() => setShowJavelin(false)}
-          footer={(close) => (
-            <button className="btn-primary" onClick={close}>
-              Done
-            </button>
-          )}
-        >
-          <div className="exercise-list">
-            {JAVELIN_PROGRAM.map((ex) => (
-              <div className="exercise-item" key={ex.name}>
-                <div className="exercise-header">
-                  <span className="exercise-name">{ex.name}</span>
-                  <span className="exercise-target">{ex.target}</span>
-                </div>
-                <p className="exercise-desc">{ex.description}</p>
+      <Modal
+        opened={showJavelin}
+        onClose={() => setShowJavelin(false)}
+        title="Javelin Program"
+        centered
+        size="md"
+      >
+        <div className="exercise-list">
+          {JAVELIN_PROGRAM.map((ex) => (
+            <div className="exercise-item" key={ex.name}>
+              <div className="exercise-header">
+                <span className="exercise-name">{ex.name}</span>
+                <span className="exercise-target">{ex.target}</span>
               </div>
-            ))}
-          </div>
-        </Modal>
-      )}
+              <p className="exercise-desc">{ex.description}</p>
+            </div>
+          ))}
+        </div>
+        <Group justify="flex-end" mt="md">
+          <Button color="accent" onClick={() => setShowJavelin(false)}>Done</Button>
+        </Group>
+      </Modal>
 
-      {showRecovery && (
-        <Modal
-          title="Post-Throw Recovery"
-          onClose={() => setShowRecovery(false)}
-          footer={(close) => (
-            <button className="btn-primary" onClick={close}>
-              Done
-            </button>
-          )}
-        >
-          <div className="exercise-list">
-            {POST_THROW_RECOVERY.map((ex) => (
-              <div className="exercise-item" key={ex.name}>
-                <div className="exercise-header">
-                  <span className="exercise-name">{ex.name}</span>
-                  <span className="exercise-target">{ex.target}</span>
-                </div>
-                <p className="exercise-desc">{ex.description}</p>
+      <Modal
+        opened={showRecovery}
+        onClose={() => setShowRecovery(false)}
+        title="Post-Throw Recovery"
+        centered
+        size="md"
+      >
+        <div className="exercise-list">
+          {POST_THROW_RECOVERY.map((ex) => (
+            <div className="exercise-item" key={ex.name}>
+              <div className="exercise-header">
+                <span className="exercise-name">{ex.name}</span>
+                <span className="exercise-target">{ex.target}</span>
               </div>
-            ))}
-          </div>
-        </Modal>
-      )}
+              <p className="exercise-desc">{ex.description}</p>
+            </div>
+          ))}
+        </div>
+        <Group justify="flex-end" mt="md">
+          <Button color="accent" onClick={() => setShowRecovery(false)}>Done</Button>
+        </Group>
+      </Modal>
     </div>
   );
 }

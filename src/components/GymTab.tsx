@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { GymExercise, GymPlan, GymProgress, GymEntry } from "../types";
-
-const GYM_DAYS = ["Tue", "Thu", "Fri", "Sat"] as const;
+import { NumberInput, Button, Modal, Group } from "@mantine/core";
+import type { GymExercise, GymPlan, GymProgress, GymEntry, Schedule } from "../types";
+import { DAY_NAMES } from "../constants";
 
 function generateId(): string {
   return `ex-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -14,15 +14,21 @@ function formatEntry(e: GymEntry): string {
   return parts.join(" ");
 }
 
+function formatExerciseLabel(ex: GymExercise): string {
+  return ex.sets ? `${ex.movement}, ${ex.sets}` : ex.movement;
+}
+
 function ProgressModal({
-  name,
+  exercise,
   history,
   onAppend,
+  onDelete,
   onClose,
 }: {
-  name: string;
+  exercise: GymExercise;
   history: GymEntry[];
   onAppend: (entry: GymEntry) => void;
+  onDelete: (entryId: string) => void;
   onClose: () => void;
 }) {
   const last = history.length > 0 ? history[history.length - 1] : null;
@@ -35,12 +41,13 @@ function ProgressModal({
 
   function buildEntry(): GymEntry | null {
     const kgNum = kg.trim() !== "" ? parseFloat(kg) : undefined;
-    if (kgNum === undefined && deltaVal === null) return null;
-    const entry: GymEntry = {};
+    const delta = deltaVal !== null && deltaVal !== 0 ? deltaVal : null;
+    if (kgNum === undefined && delta === null) return null;
+    const entry: GymEntry = { id: crypto.randomUUID() };
     if (kgNum !== undefined) entry.kg = kgNum;
-    if (deltaVal !== null) {
-      entry.sign = deltaVal >= 0 ? "+" : "-";
-      entry.delta = Math.abs(deltaVal);
+    if (delta !== null) {
+      entry.sign = delta > 0 ? "+" : "-";
+      entry.delta = Math.abs(delta);
     }
     return entry;
   }
@@ -54,61 +61,81 @@ function ProgressModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">{name}</div>
-          {current && <div className="gym-modal-current">{current}</div>}
-        </div>
-        <div className="modal-body">
-          {history.length > 1 && (
-            <div className="gym-history-strip">
-              {history.slice(0, -1).map((e, i) => (
-                <span key={i} className="gym-history-chip">{formatEntry(e)}</span>
-              ))}
+    <Modal
+      opened
+      onClose={onClose}
+      title={
+        <div>
+          <div style={{ fontWeight: 600 }}>{formatExerciseLabel(exercise)}</div>
+          {current && last && (
+            <div className="gym-modal-current" style={{ marginTop: 4 }}>
+              <span>{current}</span>
+              <button
+                type="button"
+                className="gym-history-del"
+                aria-label="Delete latest entry"
+                onClick={() => onDelete(last.id)}
+              >×</button>
             </div>
           )}
-          <div className="gym-entry-row">
-            <div className="gym-entry-field">
-              <label className="gym-entry-label">Kg</label>
-              <input
-                type="number"
-                className="gym-entry-input"
-                value={kg}
-                onChange={(e) => setKg(e.target.value)}
-                placeholder="—"
-                min={0}
-                step={0.5}
-              />
-            </div>
-            <div className="gym-entry-field">
-              <label className="gym-entry-label">Reps +/−</label>
-              <div className="gym-stepper">
-                <button type="button" className="gym-step-btn" onClick={() => stepDelta(-1)}>−</button>
-                <span className="gym-step-val">
-                  {deltaVal === null ? "—" : deltaVal > 0 ? `+${deltaVal}` : `${deltaVal}`}
-                </span>
-                <button type="button" className="gym-step-btn" onClick={() => stepDelta(1)}>+</button>
-              </div>
-            </div>
+        </div>
+      }
+      centered
+      size="md"
+    >
+      {history.length > 1 && (
+        <div className="gym-history-strip">
+          {history.slice(0, -1).map((e) => (
+            <span key={e.id} className="gym-history-chip">
+              {formatEntry(e)}
+              <button
+                type="button"
+                className="gym-history-del"
+                aria-label="Delete entry"
+                onClick={() => onDelete(e.id)}
+              >×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="gym-entry-row">
+        <div className="gym-entry-field">
+          <label className="gym-entry-label">Kg</label>
+          <NumberInput
+            value={kg === "" ? "" : Number(kg)}
+            onChange={(v) => setKg(v === "" || v === undefined ? "" : String(v))}
+            placeholder="—"
+            min={0}
+            step={0.25}
+            decimalScale={2}
+            hideControls
+          />
+        </div>
+        <div className="gym-entry-field">
+          <label className="gym-entry-label">Reps +/−</label>
+          <div className="gym-stepper">
+            <button type="button" className="gym-step-btn" onClick={() => stepDelta(-1)}>−</button>
+            <span className="gym-step-val">
+              {deltaVal === null ? "—" : deltaVal > 0 ? `+${deltaVal}` : `${deltaVal}`}
+            </span>
+            <button type="button" className="gym-step-btn" onClick={() => stepDelta(1)}>+</button>
           </div>
-          {preview && (
-            <div className="gym-entry-preview">Will append: <strong>{preview}</strong></div>
-          )}
-        </div>
-        <div className="modal-actions">
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button
-            className="btn-primary"
-            onClick={() => { if (entry) { onAppend(entry); onClose(); } }}
-            disabled={!entry}
-            style={{ opacity: entry ? 1 : 0.4 }}
-          >
-            Append
-          </button>
         </div>
       </div>
-    </div>
+      {preview && (
+        <div className="gym-entry-preview">Will append: <strong>{preview}</strong></div>
+      )}
+      <Group justify="flex-end" gap="xs" mt="md">
+        <Button variant="default" onClick={onClose}>Cancel</Button>
+        <Button
+          color="accent"
+          onClick={() => { if (entry) { onAppend(entry); onClose(); } }}
+          disabled={!entry}
+        >
+          Append
+        </Button>
+      </Group>
+    </Modal>
   );
 }
 
@@ -128,28 +155,35 @@ function DayPlanCard({
   onPlanChange: (exercises: GymExercise[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
-  const [editingNameVal, setEditingNameVal] = useState("");
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editMovement, setEditMovement] = useState("");
+  const [editSets, setEditSets] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  function startEditName(i: number) {
-    setEditingNameIdx(i);
-    setEditingNameVal(exercises[i].name);
+  function startEdit(i: number) {
+    setEditIdx(i);
+    setEditMovement(exercises[i].movement);
+    setEditSets(exercises[i].sets ?? "");
   }
 
-  function commitName(i: number) {
-    const trimmed = editingNameVal.trim();
-    if (trimmed === "") {
+  function commit(i: number) {
+    const movement = editMovement.trim();
+    const sets = editSets.trim();
+    if (movement === "") {
       onPlanChange(exercises.filter((_, idx) => idx !== i));
     } else {
-      // Reuse the existing exercise's ID if the name matches one from suggestions,
-      // so history is preserved when adding an already-known exercise.
-      const existing = suggestions.find((s) => s.name === trimmed);
+      // Reuse an existing exercise's ID if movement matches a known one,
+      // so history is preserved when re-adding.
+      const existing = suggestions.find((s) => s.movement.toLowerCase() === movement.toLowerCase());
       onPlanChange(exercises.map((ex, idx) =>
-        idx === i ? (existing ?? { ...ex, name: trimmed }) : ex
+        idx === i
+          ? existing
+            ? { ...existing, sets: sets || existing.sets }
+            : { ...ex, movement, sets: sets || undefined }
+          : ex,
       ));
     }
-    setEditingNameIdx(null);
+    setEditIdx(null);
   }
 
   return (
@@ -168,30 +202,49 @@ function DayPlanCard({
           {exercises.map((ex, i) => {
             const history = gymProgress[ex.id] ?? [];
             const current = history.length > 0 ? formatEntry(history[history.length - 1]) : null;
-            const isEditing = editingNameIdx === i;
+            const isEditing = editIdx === i;
             return (
-              <div key={ex.id} className="gym-plan-row" onClick={() => { if (!isEditing && ex.name) onExerciseTap(ex); }}>
+              <div key={ex.id} className="gym-plan-row" onClick={() => { if (!isEditing && ex.movement) onExerciseTap(ex); }}>
                 {isEditing ? (
-                  <div className="gym-name-input-wrap" onClick={(e) => e.stopPropagation()}>
+                  <div className="gym-edit-wrap" onClick={(e) => e.stopPropagation()}>
                     <input
                       className="gym-name-input"
-                      value={editingNameVal}
-                      onChange={(e) => { setEditingNameVal(e.target.value); setShowSuggestions(true); }}
-                      onBlur={() => { setTimeout(() => { commitName(i); setShowSuggestions(false); }, 150); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { commitName(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditingNameIdx(null); setShowSuggestions(false); } }}
+                      placeholder="Movement (e.g. Lateral raise)"
+                      value={editMovement}
+                      onChange={(e) => { setEditMovement(e.target.value); setShowSuggestions(true); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { commit(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditIdx(null); setShowSuggestions(false); } }}
                       autoFocus
                     />
+                    <input
+                      className="gym-sets-input"
+                      placeholder="Sets (e.g. 4x10)"
+                      value={editSets}
+                      onChange={(e) => setEditSets(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { commit(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditIdx(null); setShowSuggestions(false); } }}
+                    />
+                    <div className="gym-edit-actions">
+                      <Button variant="default" size="sm" onClick={() => setEditIdx(null)}>Cancel</Button>
+                      <Button color="accent" size="sm" onClick={() => { commit(i); setShowSuggestions(false); }}>Save</Button>
+                    </div>
                     {showSuggestions && (() => {
-                      const q = editingNameVal.trim().toLowerCase();
-                      const matches = suggestions.filter((s) => s.name.toLowerCase().includes(q) && s.name !== editingNameVal);
+                      const q = editMovement.trim().toLowerCase();
+                      if (q === "") return null;
+                      const matches = suggestions.filter((s) => s.movement.toLowerCase().includes(q) && s.movement !== editMovement);
                       return matches.length > 0 ? (
                         <div className="gym-suggestions">
                           {matches.map((s) => (
                             <div
                               key={s.id}
                               className="gym-suggestion-item"
-                              onMouseDown={(e) => { e.preventDefault(); setEditingNameVal(s.name); setShowSuggestions(false); }}
-                            >{s.name}</div>
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setEditMovement(s.movement);
+                                setEditSets(s.sets ?? "");
+                                setShowSuggestions(false);
+                              }}
+                            >
+                              {formatExerciseLabel(s)}
+                            </div>
                           ))}
                         </div>
                       ) : null;
@@ -223,12 +276,21 @@ function DayPlanCard({
                         }}
                       >▼</button>
                     </div>
-                    <span className="gym-progress-name">{ex.name || <span style={{ color: "var(--border)" }}>Unnamed</span>}</span>
+                    <div className="gym-progress-name">
+                      {ex.movement ? (
+                        <>
+                          <span className="gym-ex-movement">{ex.movement}</span>
+                          {ex.sets && <span className="gym-ex-sets">{ex.sets}</span>}
+                        </>
+                      ) : (
+                        <span style={{ color: "var(--border)" }}>Unnamed</span>
+                      )}
+                    </div>
                     <span className="gym-progress-weights">{current ?? <span style={{ color: "var(--border)" }}>—</span>}</span>
                     <button
                       type="button"
                       className="gym-edit-name-btn"
-                      onClick={(e) => { e.stopPropagation(); startEditName(i); }}
+                      onClick={(e) => { e.stopPropagation(); startEdit(i); }}
                     >✎</button>
                   </>
                 )}
@@ -241,11 +303,12 @@ function DayPlanCard({
             );
           })}
           <button type="button" className="gym-add-btn" onClick={() => {
-            const newEx: GymExercise = { id: generateId(), name: "" };
+            const newEx: GymExercise = { id: generateId(), movement: "" };
             const newExercises = [...exercises, newEx];
             onPlanChange(newExercises);
-            setEditingNameIdx(newExercises.length - 1);
-            setEditingNameVal("");
+            setEditIdx(newExercises.length - 1);
+            setEditMovement("");
+            setEditSets("");
           }}>
             + Add exercise
           </button>
@@ -258,24 +321,34 @@ function DayPlanCard({
 interface Props {
   gymPlan: GymPlan;
   gymProgress: GymProgress;
+  schedule: Schedule;
   onPlanChange: (dayName: string, exercises: GymExercise[]) => void;
-  onProgressChange: (exerciseId: string, history: GymEntry[]) => void;
+  onEntryAppend: (exerciseId: string, entry: GymEntry) => void;
+  onEntryDelete: (exerciseId: string, entryId: string) => void;
 }
 
-export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressChange }: Props) {
+export default function GymTab({ gymPlan, gymProgress, schedule, onPlanChange, onEntryAppend, onEntryDelete }: Props) {
   const [editing, setEditing] = useState<GymExercise | null>(null);
+
+  // Days the user has marked as gym days, in week order
+  const gymDays = DAY_NAMES.filter((name) => schedule[name]?.gym);
 
   // All unique exercises across all days (deduplicated by id) — used for suggestions
   const allExercises = Object.values(
     Object.values(gymPlan).flat().reduce<Record<string, GymExercise>>((acc, ex) => {
-      if (ex.name && !acc[ex.id]) acc[ex.id] = ex;
+      if (ex.movement && !acc[ex.id]) acc[ex.id] = ex;
       return acc;
     }, {})
   );
 
   return (
     <div className="tab-panel">
-      {GYM_DAYS.map((dayName) => (
+      {gymDays.length === 0 && (
+        <p style={{ color: "var(--text2)", textAlign: "center", marginTop: 16 }}>
+          No gym days configured. Open Settings ⚙️ to edit your schedule.
+        </p>
+      )}
+      {gymDays.map((dayName) => (
         <DayPlanCard
           key={dayName}
           dayName={dayName}
@@ -289,12 +362,10 @@ export default function GymTab({ gymPlan, gymProgress, onPlanChange, onProgressC
 
       {editing !== null && (
         <ProgressModal
-          name={editing.name}
+          exercise={editing}
           history={gymProgress[editing.id] ?? []}
-          onAppend={(entry) => {
-            const prev = gymProgress[editing.id] ?? [];
-            onProgressChange(editing.id, [...prev, entry]);
-          }}
+          onAppend={(entry) => onEntryAppend(editing.id, entry)}
+          onDelete={(entryId) => onEntryDelete(editing.id, entryId)}
           onClose={() => setEditing(null)}
         />
       )}

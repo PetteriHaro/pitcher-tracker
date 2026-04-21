@@ -1,11 +1,37 @@
 import { supabase } from "./supabase";
-import type { Day, DayData, GymEntry, GymExercise, GymPlan, GymProgress } from "../types";
+import { reportError } from "./errorBus";
+import type {
+  Day,
+  DayData,
+  GymEntry,
+  GymExercise,
+  GymPlan,
+  GymProgress,
+  Schedule,
+  ThrowType,
+} from "../types";
+import { DAY_NAMES, DEFAULT_SCHEDULE } from "../constants";
 
 export interface LocalSnapshot {
   startDate: string | null;
+  schedule: Schedule;
   data: DayData;
   gymPlan: GymPlan;
   gymProgress: GymProgress;
+}
+
+// ---------------------------------------------------------------------------
+// Day-of-week helpers
+// ---------------------------------------------------------------------------
+
+function dayNameFromIndex(idx: number): string {
+  return DAY_NAMES[idx]!;
+}
+
+function indexFromDayName(name: string): number {
+  const i = DAY_NAMES.indexOf(name as (typeof DAY_NAMES)[number]);
+  if (i < 0) throw new Error(`Unknown day name: ${name}`);
+  return i;
 }
 
 // ---------------------------------------------------------------------------
@@ -16,7 +42,6 @@ function dayToRow(userId: string, iso: string, day: Day) {
   return {
     user_id: userId,
     date: iso,
-    day_of_week: day.dayOfWeek,
     spine: day.movement.spine,
     shoulders: day.movement.shoulders,
     hips: day.movement.hips,
@@ -39,9 +64,13 @@ function dayToRow(userId: string, iso: string, day: Day) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToDay(row: Record<string, any>): Day {
+  // The `date` column now returns a JS Date string formatted as YYYY-MM-DD
+  const iso: string = row.date;
+  const dowIdx = new Date(iso + "T00:00:00").getDay(); // 0=Sun..6=Sat
+  const mondayIdx = (dowIdx + 6) % 7; // 0=Mon..6=Sun
   return {
-    date: row.date,
-    dayOfWeek: row.day_of_week,
+    date: iso,
+    dayOfWeek: dayNameFromIndex(mondayIdx),
     movement: {
       spine: row.spine,
       shoulders: row.shoulders,
@@ -52,7 +81,7 @@ function rowToDay(row: Record<string, any>): Day {
     },
     throwing: row.throw_type
       ? {
-          type: row.throw_type,
+          type: row.throw_type as ThrowType,
           javelinDone: row.javelin_done ?? undefined,
           workingThrows: row.working_throws ?? "",
           longTossMaxDistance: row.long_toss_max_distance ?? "",
@@ -64,19 +93,72 @@ function rowToDay(row: Record<string, any>): Day {
   };
 }
 
+function entryToRow(userId: string, exerciseId: string, entry: GymEntry) {
+  let repDelta: number | null = null;
+  if (entry.delta !== undefined && entry.sign) {
+    repDelta = entry.sign === "-" ? -entry.delta : entry.delta;
+  }
+  return {
+    id: entry.id,
+    user_id: userId,
+    exercise_id: exerciseId,
+    kg: entry.kg ?? null,
+    rep_delta: repDelta,
+  };
+}
+
+function rowToEntry(row: {
+  id: string;
+  kg: number | null;
+  rep_delta: number | null;
+}): GymEntry {
+  const entry: GymEntry = { id: row.id };
+  if (row.kg != null) entry.kg = row.kg;
+  if (row.rep_delta != null && row.rep_delta !== 0) {
+    entry.sign = row.rep_delta > 0 ? "+" : "-";
+    entry.delta = Math.abs(row.rep_delta);
+  }
+  return entry;
+}
+
 // ---------------------------------------------------------------------------
-// Load all user data on startup
+// Startup load
 // ---------------------------------------------------------------------------
 
 export async function loadAllUserData(userId: string): Promise<LocalSnapshot> {
-  const [profileRes, daysRes, exercisesRes, entriesRes] = await Promise.all([
-    supabase.from("user_profiles").select("start_date").eq("user_id", userId).single(),
-    supabase.from("training_days").select("*").eq("user_id", userId),
-    supabase.from("gym_exercises").select("*").eq("user_id", userId).order("sort_order"),
-    supabase.from("gym_entries").select("*").eq("user_id", userId).order("position"),
-  ]);
+  const [profileRes, scheduleRes, daysRes, exercisesRes, entriesRes] =
+    await Promise.all([
+      supabase.from("profiles").select("start_date").eq("user_id", userId).maybeSingle(),
+      supabase.from("schedule_days").select("*").eq("user_id", userId),
+      supabase.from("training_days").select("*").eq("user_id", userId),
+      supabase
+        .from("gym_exercises")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order"),
+      supabase
+        .from("gym_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true }),
+    ]);
 
   const startDate: string | null = profileRes.data?.start_date ?? null;
+
+  let schedule: Schedule;
+  if ((scheduleRes.data ?? []).length === 7) {
+    schedule = {};
+    for (const row of scheduleRes.data!) {
+      schedule[dayNameFromIndex(row.day_of_week)] = {
+        throwType: row.throw_type as ThrowType,
+        gym: row.gym,
+      };
+    }
+  } else {
+    schedule = { ...DEFAULT_SCHEDULE };
+    // Seed the schedule if missing
+    await seedDefaultSchedule(userId);
+  }
 
   const data: DayData = {};
   for (const row of daysRes.data ?? []) {
@@ -85,161 +167,127 @@ export async function loadAllUserData(userId: string): Promise<LocalSnapshot> {
 
   const gymPlan: GymPlan = {};
   for (const row of exercisesRes.data ?? []) {
-    if (!gymPlan[row.day_name]) gymPlan[row.day_name] = [];
-    gymPlan[row.day_name].push({ id: row.exercise_id, name: row.name });
+    const dayName = dayNameFromIndex(row.day_of_week);
+    if (!gymPlan[dayName]) gymPlan[dayName] = [];
+    gymPlan[dayName].push({
+      id: row.id,
+      movement: row.movement,
+      sets: row.sets ?? undefined,
+    });
   }
 
   const gymProgress: GymProgress = {};
   for (const row of entriesRes.data ?? []) {
     if (!gymProgress[row.exercise_id]) gymProgress[row.exercise_id] = [];
-    gymProgress[row.exercise_id].push({
-      kg: row.kg ?? undefined,
-      sign: row.sign ?? undefined,
-      delta: row.delta ?? undefined,
-    });
+    gymProgress[row.exercise_id].push(rowToEntry(row));
   }
 
-  return { startDate, data, gymPlan, gymProgress };
+  return { startDate, schedule, data, gymPlan, gymProgress };
+}
+
+async function seedDefaultSchedule(userId: string): Promise<void> {
+  const rows = DAY_NAMES.map((name, idx) => ({
+    user_id: userId,
+    day_of_week: idx,
+    throw_type: DEFAULT_SCHEDULE[name].throwType,
+    gym: DEFAULT_SCHEDULE[name].gym,
+  }));
+  await supabase.from("schedule_days").upsert(rows, { onConflict: "user_id,day_of_week" });
 }
 
 // ---------------------------------------------------------------------------
-// Individual fire-and-forget saves
+// Fire-and-forget saves
 // ---------------------------------------------------------------------------
 
-export function saveStartDate(userId: string, date: string | null): void {
-  supabase
-    .from("user_profiles")
-    .upsert({ user_id: userId, start_date: date }, { onConflict: "user_id" })
-    .then(({ error }) => { if (error) console.error("saveStartDate", error); });
+export async function saveStartDate(userId: string, date: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({ user_id: userId, start_date: date }, { onConflict: "user_id" });
+  if (error) { reportError("Couldn't save start date", error); throw error; }
 }
 
-export function saveDay(userId: string, iso: string, day: Day): void {
-  supabase
+export async function saveScheduleDay(
+  userId: string,
+  dayName: string,
+  cfg: { throwType: ThrowType; gym: boolean },
+): Promise<void> {
+  const { error } = await supabase
+    .from("schedule_days")
+    .upsert(
+      {
+        user_id: userId,
+        day_of_week: indexFromDayName(dayName),
+        throw_type: cfg.throwType,
+        gym: cfg.gym,
+      },
+      { onConflict: "user_id,day_of_week" },
+    );
+  if (error) { reportError("Couldn't save schedule", error); throw error; }
+}
+
+export async function saveDay(userId: string, iso: string, day: Day): Promise<void> {
+  const { error } = await supabase
     .from("training_days")
-    .upsert(dayToRow(userId, iso, day), { onConflict: "user_id,date" })
-    .then(({ error }) => { if (error) console.error("saveDay", error); });
+    .upsert(dayToRow(userId, iso, day), { onConflict: "user_id,date" });
+  if (error) { reportError("Couldn't save day", error); throw error; }
 }
 
-export function saveGymPlanDay(
+export async function saveGymPlanDay(
   userId: string,
   dayName: string,
   exercises: GymExercise[],
-): void {
-  (async () => {
-    await supabase
-      .from("gym_exercises")
-      .delete()
-      .eq("user_id", userId)
-      .eq("day_name", dayName);
-    if (exercises.length > 0) {
-      await supabase.from("gym_exercises").insert(
-        exercises.map((ex, i) => ({
-          user_id: userId,
-          exercise_id: ex.id,
-          day_name: dayName,
-          name: ex.name,
-          sort_order: i,
-        })),
-      );
-    }
-  })().catch((e) => console.error("saveGymPlanDay", e));
+): Promise<void> {
+  const dow = indexFromDayName(dayName);
+  if (exercises.length > 0) {
+    const { error: upErr } = await supabase.from("gym_exercises").upsert(
+      exercises.map((ex, i) => ({
+        id: ex.id,
+        user_id: userId,
+        day_of_week: dow,
+        movement: ex.movement,
+        sets: ex.sets ?? null,
+        sort_order: i,
+      })),
+      { onConflict: "id" },
+    );
+    if (upErr) { reportError("Couldn't save gym plan", upErr); throw upErr; }
+  }
+  // Remove exercises for this day that are no longer in the list
+  const keepIds = exercises.map((ex) => ex.id);
+  const delQuery =
+    keepIds.length > 0
+      ? supabase
+          .from("gym_exercises")
+          .delete()
+          .eq("user_id", userId)
+          .eq("day_of_week", dow)
+          .not("id", "in", `(${keepIds.map((id) => `"${id}"`).join(",")})`)
+      : supabase
+          .from("gym_exercises")
+          .delete()
+          .eq("user_id", userId)
+          .eq("day_of_week", dow);
+  const { error: delErr } = await delQuery;
+  if (delErr) { reportError("Couldn't save gym plan", delErr); throw delErr; }
 }
 
-export function saveGymProgressExercise(
+export async function appendGymEntry(
   userId: string,
   exerciseId: string,
-  history: GymEntry[],
-): void {
-  (async () => {
-    await supabase
-      .from("gym_entries")
-      .delete()
-      .eq("user_id", userId)
-      .eq("exercise_id", exerciseId);
-    if (history.length > 0) {
-      await supabase.from("gym_entries").insert(
-        history.map((entry, i) => ({
-          user_id: userId,
-          exercise_id: exerciseId,
-          kg: entry.kg ?? null,
-          sign: entry.sign ?? null,
-          delta: entry.delta ?? null,
-          position: i,
-        })),
-      );
-    }
-  })().catch((e) => console.error("saveGymProgressExercise", e));
-}
-
-// ---------------------------------------------------------------------------
-// Bulk save — used during migration and JSON import
-// ---------------------------------------------------------------------------
-
-export async function saveAllUserData(
-  userId: string,
-  snapshot: LocalSnapshot,
+  entry: GymEntry,
 ): Promise<void> {
-  await supabase
-    .from("user_profiles")
-    .upsert({ user_id: userId, start_date: snapshot.startDate }, { onConflict: "user_id" });
-
-  if (Object.keys(snapshot.data).length > 0) {
-    await supabase.from("training_days").upsert(
-      Object.entries(snapshot.data).map(([iso, day]) => dayToRow(userId, iso, day)),
-      { onConflict: "user_id,date" },
-    );
-  }
-
-  for (const [dayName, exercises] of Object.entries(snapshot.gymPlan)) {
-    await supabase
-      .from("gym_exercises")
-      .delete()
-      .eq("user_id", userId)
-      .eq("day_name", dayName);
-    if (exercises.length > 0) {
-      await supabase.from("gym_exercises").insert(
-        exercises.map((ex, i) => ({
-          user_id: userId,
-          exercise_id: ex.id,
-          day_name: dayName,
-          name: ex.name,
-          sort_order: i,
-        })),
-      );
-    }
-  }
-
-  for (const [exerciseId, history] of Object.entries(snapshot.gymProgress)) {
-    await supabase
-      .from("gym_entries")
-      .delete()
-      .eq("user_id", userId)
-      .eq("exercise_id", exerciseId);
-    if (history.length > 0) {
-      await supabase.from("gym_entries").insert(
-        history.map((entry, i) => ({
-          user_id: userId,
-          exercise_id: exerciseId,
-          kg: entry.kg ?? null,
-          sign: entry.sign ?? null,
-          delta: entry.delta ?? null,
-          position: i,
-        })),
-      );
-    }
-  }
+  const { error } = await supabase
+    .from("gym_entries")
+    .insert(entryToRow(userId, exerciseId, entry));
+  if (error) { reportError("Couldn't save gym entry", error); throw error; }
 }
 
-// ---------------------------------------------------------------------------
-// Reset — deletes all rows for the user across all tables
-// ---------------------------------------------------------------------------
-
-export async function clearAllUserData(userId: string): Promise<void> {
-  await Promise.all([
-    supabase.from("user_profiles").delete().eq("user_id", userId),
-    supabase.from("training_days").delete().eq("user_id", userId),
-    supabase.from("gym_exercises").delete().eq("user_id", userId),
-    supabase.from("gym_entries").delete().eq("user_id", userId),
-  ]);
+export async function deleteGymEntry(userId: string, entryId: string): Promise<void> {
+  const { error } = await supabase
+    .from("gym_entries")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", entryId);
+  if (error) { reportError("Couldn't delete gym entry", error); throw error; }
 }
 

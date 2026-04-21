@@ -1,80 +1,57 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
+import { useForm, hasLength } from "@mantine/form";
+import {
+  SegmentedControl,
+  Checkbox,
+  TextInput,
+  PasswordInput,
+  Button,
+  Stack,
+  Text,
+  Group,
+  Modal,
+} from "@mantine/core";
 import { getMondayOfWeek, parseISO, toISO } from "../utils/dates";
 import { supabase } from "../utils/supabase";
-import type { LocalSnapshot } from "../utils/storage";
-import type { DayData } from "../types";
-import Modal from "./Modal";
+import type { Schedule, ThrowType } from "../types";
+import { DAY_NAMES } from "../constants";
 
 interface Props {
   isOpen: boolean;
   startDate: string;
-  data: DayData;
+  schedule: Schedule;
   onClose: () => void;
   onSave: (newStartDate: string) => void;
-  onImport: (snapshot: LocalSnapshot) => Promise<void>;
-  onReset: () => Promise<void>;
+  onScheduleChange: (dayName: string, cfg: { throwType: ThrowType; gym: boolean }) => void;
 }
 
-function exportData(startDate: string, data: DayData) {
-  const payload = { startDate, data };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `pitcher-tracker-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+const THROW_OPTIONS: { value: ThrowType; label: string }[] = [
+  { value: "rest", label: "Rest" },
+  { value: "javelin_longtoss", label: "Jav + LT" },
+  { value: "mound_bullpen", label: "Mound" },
+];
 
 export default function SettingsModal({
   isOpen,
   startDate,
-  data,
+  schedule,
   onClose,
   onSave,
-  onImport,
-  onReset,
+  onScheduleChange,
 }: Props) {
   const [value, setValue] = useState(startDate);
-  const [importError, setImportError] = useState("");
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwInfo, setPwInfo] = useState("");
 
-  if (!isOpen) return null;
+  const pwForm = useForm({
+    initialValues: { password: "" },
+    validate: { password: hasLength({ min: 8 }, "At least 8 characters") },
+  });
 
-  function handleSave(close: () => void) {
+  function handleSave() {
     const mon = getMondayOfWeek(parseISO(value).toDate());
     onSave(toISO(mon.toDate()));
-    close();
-  }
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportError("");
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const parsed = JSON.parse(reader.result as string) as LocalSnapshot;
-        if (!parsed.startDate && !parsed.data) throw new Error("invalid");
-        setImporting(true);
-        await onImport(parsed);
-        setImporting(false);
-        onClose();
-      } catch {
-        setImporting(false);
-        setImportError("Invalid file — could not parse JSON.");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  async function handleReset() {
-    await onReset();
-    setConfirmReset(false);
     onClose();
   }
 
@@ -83,92 +60,102 @@ export default function SettingsModal({
     await supabase.auth.signOut();
   }
 
+  async function handleChangePassword(values: { password: string }) {
+    setPwError(""); setPwInfo("");
+    const { error } = await supabase.auth.updateUser({ password: values.password });
+    if (error) setPwError(error.message);
+    else {
+      setPwInfo("Password updated.");
+      pwForm.reset();
+      setShowPwForm(false);
+    }
+  }
+
   return (
-    <Modal
-      title="Settings"
-      onClose={onClose}
-      footer={(close) => (
-        <>
-          <button className="btn-secondary" onClick={close}>
-            Cancel
-          </button>
-          <button className="btn-primary" onClick={() => handleSave(close)}>
-            Save
-          </button>
-        </>
-      )}
-    >
-      <div
-        className="field-row"
-        style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}
-      >
-        <label className="field-label">Program start date</label>
-        <input
-          type="date"
-          style={{ width: "100%" }}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
+    <Modal opened={isOpen} onClose={onClose} title="Settings" centered size="md">
+      <TextInput
+        label="Program start date"
+        type="date"
+        value={value}
+        onChange={(e) => setValue(e.currentTarget.value)}
+      />
+
+      <div style={{ borderTop: "1px solid var(--border)", margin: "16px 0" }} />
+
+      <div className="section-title" style={{ marginBottom: 10 }}>Schedule</div>
+      <div className="schedule-editor">
+        {DAY_NAMES.map((day) => {
+          const cfg = schedule[day] ?? { throwType: "rest" as ThrowType, gym: false };
+          return (
+            <div key={day} className="schedule-row">
+              <span className="schedule-day">{day}</span>
+              <SegmentedControl
+                size="xs"
+                color="accent"
+                value={cfg.throwType}
+                onChange={(v) =>
+                  onScheduleChange(day, { throwType: v as ThrowType, gym: cfg.gym })
+                }
+                data={THROW_OPTIONS.map((o) => ({ label: o.label, value: o.value }))}
+                style={{ flex: 1 }}
+              />
+              <Checkbox
+                size="sm"
+                color="accent"
+                label="Gym"
+                checked={cfg.gym}
+                onChange={(e) =>
+                  onScheduleChange(day, {
+                    throwType: cfg.throwType,
+                    gym: e.currentTarget.checked,
+                  })
+                }
+              />
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)", margin: "16px 0" }} />
 
-      <div className="section-title" style={{ marginBottom: 10 }}>
-        Data
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <button className="btn-secondary" onClick={() => exportData(startDate, data)}>
-          Export data (JSON)
-        </button>
-        <button
-          className="btn-secondary"
-          onClick={() => fileRef.current?.click()}
-          disabled={importing}
-        >
-          {importing ? "Importing…" : "Import data (JSON)"}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".json,application/json"
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
-        {importError && (
-          <span style={{ fontSize: "0.8rem", color: "var(--red)" }}>{importError}</span>
-        )}
-
-        <div style={{ borderTop: "1px solid var(--border)", marginTop: 4 }} />
-
-        {!confirmReset ? (
-          <button className="btn-danger" onClick={() => setConfirmReset(true)}>
-            Reset all progress
-          </button>
+      <div className="section-title" style={{ marginBottom: 10 }}>Account</div>
+      <Stack gap="xs">
+        {!showPwForm ? (
+          <Button
+            variant="default"
+            onClick={() => { setShowPwForm(true); setPwInfo(""); setPwError(""); }}
+          >
+            Set / change password
+          </Button>
         ) : (
-          <div className="reset-confirm">
-            <div className="reset-confirm-icon">⚠️</div>
-            <p className="reset-confirm-title">Reset everything?</p>
-            <p className="reset-confirm-body">
-              All training data and your start date will be permanently deleted.
-              This cannot be undone.
-            </p>
-            <div className="reset-confirm-actions">
-              <button className="btn-secondary" onClick={() => setConfirmReset(false)}>
-                Keep data
-              </button>
-              <button className="btn-danger-solid" onClick={handleReset}>
-                Delete all
-              </button>
-            </div>
-          </div>
+          <form onSubmit={pwForm.onSubmit(handleChangePassword)}>
+            <Stack gap="xs">
+              <PasswordInput
+                placeholder="New password (min 8 chars)"
+                autoComplete="new-password"
+                {...pwForm.getInputProps("password")}
+              />
+              <Group grow gap="xs">
+                <Button
+                  variant="default"
+                  onClick={() => { setShowPwForm(false); pwForm.reset(); setPwError(""); }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" color="accent">Save password</Button>
+              </Group>
+              {pwError && <Text size="sm" c="red">{pwError}</Text>}
+            </Stack>
+          </form>
         )}
+        {pwInfo && <Text size="sm" c="green">{pwInfo}</Text>}
+        <Button variant="default" onClick={handleSignOut}>Sign out</Button>
+      </Stack>
 
-        <div style={{ borderTop: "1px solid var(--border)", marginTop: 4 }} />
-
-        <button className="btn-secondary" onClick={handleSignOut}>
-          Sign out
-        </button>
-      </div>
+      <Group justify="flex-end" gap="xs" mt="lg">
+        <Button variant="default" onClick={onClose}>Cancel</Button>
+        <Button color="accent" onClick={handleSave}>Save</Button>
+      </Group>
     </Modal>
   );
 }

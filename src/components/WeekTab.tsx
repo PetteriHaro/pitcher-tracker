@@ -1,4 +1,4 @@
-import type { DayData, Day, Throwing, ThrowType } from "../types";
+import type { DayData, Day, Throwing, ThrowType, Schedule } from "../types";
 import type { MovementKey } from "../constants";
 import {
   toISO,
@@ -18,6 +18,7 @@ interface Props {
   weekOffset: number;
   startDate: string;
   data: DayData;
+  schedule: Schedule;
   onDataChange: (iso: string, day: Day) => void;
   onWeekChange: (delta: number) => void;
   onOpenGymTab: () => void;
@@ -27,6 +28,7 @@ export default function WeekTab({
   weekOffset,
   startDate,
   data,
+  schedule,
   onDataChange,
   onWeekChange,
   onOpenGymTab,
@@ -42,11 +44,11 @@ export default function WeekTab({
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const iso = toISO(addDays(weekStart, i).toDate());
-    return data[iso] ?? initDay(iso);
+    return data[iso] ?? initDay(iso, schedule);
   });
 
   function getDay(iso: string): Day {
-    return data[iso] ?? initDay(iso);
+    return data[iso] ?? initDay(iso, schedule);
   }
 
   function handleMovement(iso: string, key: MovementKey, val: boolean) {

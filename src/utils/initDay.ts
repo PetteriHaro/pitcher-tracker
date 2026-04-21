@@ -1,13 +1,14 @@
-import type { Day } from "../types";
-import { DAY_NAMES, THROW_TYPE, GYM_DAYS } from "../constants";
+import type { Day, Schedule } from "../types";
+import { DAY_NAMES } from "../constants";
 import { parseISO } from "./dates";
 
-export function initDay(dateISO: string): Day {
+export function initDay(dateISO: string, schedule: Schedule): Day {
   const m = parseISO(dateISO);
-  // isoWeekday: 1=Mon ... 7=Sun → index 0-6
-  const dowIdx = m.isoWeekday() - 1;
+  const dowIdx = m.isoWeekday() - 1; // 0=Mon..6=Sun
   const dayName = DAY_NAMES[dowIdx]!;
-  const throwType = THROW_TYPE[dayName]!;
+  const scheduleDay = schedule[dayName];
+  const throwType = scheduleDay?.throwType ?? "rest";
+  const gymScheduled = scheduleDay?.gym ?? false;
 
   return {
     date: dateISO,
@@ -31,6 +32,6 @@ export function initDay(dateISO: string): Day {
             intensity: "70-80%",
             postThrowRecovery: false,
           },
-    gym: GYM_DAYS.includes(dayName),
+    gym: gymScheduled,
   };
 }

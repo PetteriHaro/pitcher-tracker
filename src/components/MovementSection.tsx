@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { Checkbox, Modal, Button, Group } from "@mantine/core";
 import { MOVEMENT_KEYS, MOVEMENT_LABELS, type MovementKey } from "../constants";
 import type { Movement } from "../types";
 import { MOVEMENT_EXERCISES } from "../movementExercises";
-import Modal from "./Modal";
 
 interface Props {
   movement: Movement;
@@ -18,15 +18,7 @@ function ExerciseModal({
 }) {
   const exercises = MOVEMENT_EXERCISES[sectionKey];
   return (
-    <Modal
-      title={MOVEMENT_LABELS[sectionKey]}
-      onClose={onClose}
-      footer={(close) => (
-        <button className="btn-primary" onClick={close}>
-          Done
-        </button>
-      )}
-    >
+    <Modal opened onClose={onClose} title={MOVEMENT_LABELS[sectionKey]} centered size="md">
       <div className="exercise-list">
         {exercises.map((ex) => (
           <div className="exercise-item" key={ex.name}>
@@ -38,6 +30,9 @@ function ExerciseModal({
           </div>
         ))}
       </div>
+      <Group justify="flex-end" mt="md">
+        <Button color="accent" onClick={onClose}>Done</Button>
+      </Group>
     </Modal>
   );
 }
@@ -51,15 +46,14 @@ export default function MovementSection({ movement, onChange }: Props) {
       <div className="check-list">
         {MOVEMENT_KEYS.map((key) => (
           <div className="check-row" key={key}>
-            <label className="check-item">
-              <input
-                type="checkbox"
-                checked={movement[key]}
-                onChange={(e) => onChange(key, e.target.checked)}
-              />
-              <div className="check-box" />
-              <span className="check-label">{MOVEMENT_LABELS[key]}</span>
-            </label>
+            <Checkbox
+              size="md"
+              color="accent"
+              label={MOVEMENT_LABELS[key]}
+              checked={movement[key]}
+              onChange={(e) => onChange(key, e.currentTarget.checked)}
+              style={{ flex: 1 }}
+            />
             <button
               className="info-btn"
               onClick={() => setActiveSection(key)}

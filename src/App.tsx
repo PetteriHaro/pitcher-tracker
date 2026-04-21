@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import type { DayData, Day, GymPlan, GymProgress } from "./types";
+import type { DayData, Day, GymPlan, GymProgress, Schedule } from "./types";
 import {
   loadAllUserData,
   saveStartDate,
+  saveScheduleDay,
   saveDay,
   saveGymPlanDay,
-  saveGymProgressExercise,
-  saveAllUserData,
-  clearAllUserData,
+  appendGymEntry,
+  deleteGymEntry,
   type LocalSnapshot,
 } from "./utils/storage";
 import { supabase } from "./utils/supabase";
@@ -20,51 +20,22 @@ import {
   today,
   parseISO,
 } from "./utils/dates";
-import { initDay } from "./utils/initDay";
-import { MOVEMENT_KEYS } from "./constants";
+import { DEFAULT_SCHEDULE } from "./constants";
 import LoginScreen from "./components/LoginScreen";
 import Onboarding from "./components/Onboarding";
 import WeekTab from "./components/WeekTab";
-import AnalyticsTab from "./components/AnalyticsTab";
 import GymTab from "./components/GymTab";
 import SettingsModal from "./components/SettingsModal";
 
-type Tab = "week" | "gym" | "analytics";
+type Tab = "week" | "gym";
 type AppState = "loading" | "unauthenticated" | "ready";
-
-function prePopulate(): DayData {
-  const data: DayData = {};
-
-  const tue = initDay("2026-04-01");
-  MOVEMENT_KEYS.forEach((k) => { tue.movement[k] = true; });
-  tue.throwing = {
-    type: "javelin_longtoss",
-    javelinDone: false,
-    workingThrows: 40,
-    longTossMaxDistance: 50,
-    postThrowRecovery: false,
-  };
-  tue.gym = true;
-  data["2026-04-01"] = tue;
-
-  const wed = initDay("2026-04-02");
-  MOVEMENT_KEYS.forEach((k) => { wed.movement[k] = true; });
-  wed.throwing = {
-    type: "mound_bullpen",
-    workingThrows: 40,
-    intensity: "60-70%",
-    postThrowRecovery: false,
-  };
-  data["2026-04-02"] = wed;
-
-  return data;
-}
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>("loading");
   const [userId, setUserId] = useState<string | null>(null);
-
+  const [userName, setUserName] = useState<string>("");
   const [startDate, setStartDate] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<Schedule>(DEFAULT_SCHEDULE);
   const [data, setData] = useState<DayData>({});
   const [gymPlan, setGymPlan] = useState<GymPlan>({});
   const [gymProgress, setGymProgress] = useState<GymProgress>({});
@@ -74,33 +45,68 @@ export default function App() {
 
   function hydrateState(snapshot: LocalSnapshot) {
     setStartDate(snapshot.startDate);
+    setSchedule(snapshot.schedule);
     setData(snapshot.data);
     setGymPlan(snapshot.gymPlan);
     setGymProgress(snapshot.gymProgress);
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!session) {
-          setAppState("unauthenticated");
-          setUserId(null);
-          setStartDate(null);
-          setData({});
-          setGymPlan({});
-          setGymProgress({});
-          return;
-        }
+    let cancelled = false;
+    let resolved = false;
 
-        const uid = session.user.id;
-        setUserId(uid);
-
-        const snapshot = await loadAllUserData(uid);
+    async function applySession(
+      session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"],
+    ) {
+      if (cancelled) return;
+      resolved = true;
+      if (!session) {
+        setAppState("unauthenticated");
+        setUserId(null);
+        setUserName("");
+        setStartDate(null);
+        setSchedule(DEFAULT_SCHEDULE);
+        setData({});
+        setGymPlan({});
+        setGymProgress({});
+        return;
+      }
+      const uid = session.user.id;
+      setUserId(uid);
+      setUserName((session.user.user_metadata?.name as string | undefined) ?? "");
+      try {
+        const snapshot = await Promise.race([
+          loadAllUserData(uid),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("load-timeout")), 8000),
+          ),
+        ]);
+        if (cancelled) return;
         hydrateState(snapshot);
-        setAppState("ready");
-      },
+      } catch (err) {
+        console.error("loadAllUserData failed:", err);
+      }
+      if (!cancelled) setAppState("ready");
+    }
+
+    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => { applySession(session); },
     );
-    return () => subscription.unsubscribe();
+
+    const fallback = setTimeout(() => {
+      if (!resolved && !cancelled) {
+        console.warn("auth resolution timed out, showing login");
+        setAppState("unauthenticated");
+      }
+    }, 10000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(fallback);
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -113,41 +119,71 @@ export default function App() {
 
   function handleSetStartDate(iso: string) {
     if (!userId) return;
-    let d = data;
-    if (iso === "2026-03-31" && Object.keys(d).length === 0) {
-      d = prePopulate();
-      setData(d);
-      saveAllUserData(userId, { startDate: iso, data: d, gymPlan, gymProgress });
-    } else {
-      saveStartDate(userId, iso);
-    }
+    const prev = startDate;
     setStartDate(iso);
+    saveStartDate(userId, iso).catch(() => setStartDate(prev));
+  }
+
+  function handleScheduleDayChange(
+    dayName: string,
+    cfg: { throwType: Schedule[string]["throwType"]; gym: boolean },
+  ) {
+    if (!userId) return;
+    const prev = schedule[dayName];
+    setSchedule((p) => ({ ...p, [dayName]: cfg }));
+    saveScheduleDay(userId, dayName, cfg).catch(() => {
+      setSchedule((p) => ({ ...p, [dayName]: prev }));
+    });
   }
 
   function handleDataChange(iso: string, day: Day) {
     if (!userId) return;
-    setData((prev) => {
-      const next = { ...prev, [iso]: day };
-      saveDay(userId, iso, day);
-      return next;
+    const prev = data[iso];
+    setData((p) => ({ ...p, [iso]: day }));
+    saveDay(userId, iso, day).catch(() => {
+      setData((p) => {
+        if (prev === undefined) {
+          const next = { ...p };
+          delete next[iso];
+          return next;
+        }
+        return { ...p, [iso]: prev };
+      });
     });
   }
 
   function handleGymPlanChange(dayName: string, exercises: GymPlan[string]) {
     if (!userId) return;
-    setGymPlan((prev) => {
-      const next = { ...prev, [dayName]: exercises };
-      saveGymPlanDay(userId, dayName, exercises);
-      return next;
+    const prev = gymPlan[dayName] ?? [];
+    setGymPlan((p) => ({ ...p, [dayName]: exercises }));
+    saveGymPlanDay(userId, dayName, exercises).catch(() => {
+      setGymPlan((p) => ({ ...p, [dayName]: prev }));
     });
   }
 
-  function handleGymProgressChange(exerciseId: string, history: GymProgress[string]) {
+  function handleGymEntryAppend(exerciseId: string, entry: GymProgress[string][number]) {
     if (!userId) return;
-    setGymProgress((prev) => {
-      const next: GymProgress = { ...prev, [exerciseId]: history };
-      saveGymProgressExercise(userId, exerciseId, history);
-      return next;
+    setGymProgress((p) => ({
+      ...p,
+      [exerciseId]: [...(p[exerciseId] ?? []), entry],
+    }));
+    appendGymEntry(userId, exerciseId, entry).catch(() => {
+      setGymProgress((p) => ({
+        ...p,
+        [exerciseId]: (p[exerciseId] ?? []).filter((e) => e.id !== entry.id),
+      }));
+    });
+  }
+
+  function handleGymEntryDelete(exerciseId: string, entryId: string) {
+    if (!userId) return;
+    const prev = gymProgress[exerciseId] ?? [];
+    setGymProgress((p) => ({
+      ...p,
+      [exerciseId]: prev.filter((e) => e.id !== entryId),
+    }));
+    deleteGymEntry(userId, entryId).catch(() => {
+      setGymProgress((p) => ({ ...p, [exerciseId]: prev }));
     });
   }
 
@@ -155,21 +191,6 @@ export default function App() {
     if (!userId) return;
     saveStartDate(userId, newStartDate);
     setStartDate(newStartDate);
-  }
-
-  async function handleImport(snapshot: LocalSnapshot) {
-    if (!userId) return;
-    await saveAllUserData(userId, snapshot);
-    hydrateState(snapshot);
-  }
-
-  async function handleReset() {
-    if (!userId) return;
-    await clearAllUserData(userId);
-    setStartDate(null);
-    setData({});
-    setGymPlan({});
-    setGymProgress({});
   }
 
   if (appState === "loading") {
@@ -184,21 +205,22 @@ export default function App() {
     return <LoginScreen />;
   }
 
-  const todayISO = toISO(today().toDate());
-  const currentWeekISO = startDate
-    ? toISO(
-        addDays(
-          getMondayOfWeek(parseISO(startDate).toDate()),
-          weekOffset * 7,
-        ).toDate(),
-      )
-    : todayISO;
-  const currentWeekNum = startDate ? weekNumberFor(currentWeekISO, startDate) : 1;
-  const deload = isDeloadWeek(currentWeekNum);
-
   if (!startDate) {
-    return <Onboarding onComplete={handleSetStartDate} />;
+    return (
+      <Onboarding
+        initialName={userName}
+        schedule={schedule}
+        onScheduleChange={handleScheduleDayChange}
+        onComplete={handleSetStartDate}
+      />
+    );
   }
+
+  const currentWeekISO = toISO(
+    addDays(getMondayOfWeek(parseISO(startDate).toDate()), weekOffset * 7).toDate(),
+  );
+  const currentWeekNum = weekNumberFor(currentWeekISO, startDate);
+  const deload = isDeloadWeek(currentWeekNum);
 
   return (
     <>
@@ -213,13 +235,13 @@ export default function App() {
           </div>
         </div>
         <div className="tabs">
-          {(["week", "gym", "analytics"] as Tab[]).map((tab) => (
+          {(["week", "gym"] as Tab[]).map((tab) => (
             <button
               key={tab}
               className={`tab-btn${activeTab === tab ? " active" : ""}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === "week" ? "Week" : tab === "gym" ? "Gym" : "Analytics"}
+              {tab === "week" ? "Week" : "Gym"}
             </button>
           ))}
         </div>
@@ -230,6 +252,7 @@ export default function App() {
           weekOffset={weekOffset}
           startDate={startDate}
           data={data}
+          schedule={schedule}
           onDataChange={handleDataChange}
           onWeekChange={(delta) => setWeekOffset((o) => o + delta)}
           onOpenGymTab={() => setActiveTab("gym")}
@@ -239,29 +262,20 @@ export default function App() {
         <GymTab
           gymPlan={gymPlan}
           gymProgress={gymProgress}
+          schedule={schedule}
           onPlanChange={handleGymPlanChange}
-          onProgressChange={handleGymProgressChange}
-        />
-      )}
-      {activeTab === "analytics" && (
-        <AnalyticsTab
-          data={data}
-          startDate={startDate}
-          gymProgress={gymProgress}
-          gymExerciseNames={Object.fromEntries(
-            Object.values(gymPlan).flat().map((ex) => [ex.id, ex.name]),
-          )}
+          onEntryAppend={handleGymEntryAppend}
+          onEntryDelete={handleGymEntryDelete}
         />
       )}
 
       <SettingsModal
         isOpen={settingsModalOpen}
         startDate={startDate}
-        data={data}
+        schedule={schedule}
         onClose={() => setSettingsModalOpen(false)}
         onSave={handleSaveSettings}
-        onImport={handleImport}
-        onReset={handleReset}
+        onScheduleChange={handleScheduleDayChange}
       />
     </>
   );

@@ -1,4 +1,4 @@
-import type { ThrowType } from "./types";
+import type { Schedule } from "./types";
 
 export const MOVEMENT_KEYS = [
   "spine",
@@ -30,17 +30,16 @@ export const DAY_NAMES = [
   "Sun",
 ] as const;
 
-export const THROW_TYPE: Record<string, ThrowType> = {
-  Mon: "rest",
-  Tue: "javelin_longtoss",
-  Wed: "mound_bullpen",
-  Thu: "rest",
-  Fri: "javelin_longtoss",
-  Sat: "mound_bullpen",
-  Sun: "mound_bullpen",
+// Default schedule used when seeding a new user's schedule_days rows.
+export const DEFAULT_SCHEDULE: Schedule = {
+  Mon: { throwType: "rest",              gym: false },
+  Tue: { throwType: "javelin_longtoss",  gym: true  },
+  Wed: { throwType: "mound_bullpen",     gym: false },
+  Thu: { throwType: "rest",              gym: true  },
+  Fri: { throwType: "javelin_longtoss",  gym: true  },
+  Sat: { throwType: "mound_bullpen",     gym: false },
+  Sun: { throwType: "mound_bullpen",     gym: false },
 };
-
-export const GYM_DAYS = ["Tue", "Thu", "Fri"];
 
 export const INTENSITY_OPTIONS = [
   "60-70%",
