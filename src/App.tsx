@@ -8,9 +8,6 @@ import {
   saveGymProgressExercise,
   saveAllUserData,
   clearAllUserData,
-  readLocalStorageSnapshot,
-  clearLocalStorage,
-  applyGymMigrationV1,
   type LocalSnapshot,
 } from "./utils/storage";
 import { supabase } from "./utils/supabase";
@@ -25,7 +22,7 @@ import {
 } from "./utils/dates";
 import { initDay } from "./utils/initDay";
 import { MOVEMENT_KEYS } from "./constants";
-import LoginScreen, { hasPendingMigration, clearMigrationFlag } from "./components/LoginScreen";
+import LoginScreen from "./components/LoginScreen";
 import Onboarding from "./components/Onboarding";
 import WeekTab from "./components/WeekTab";
 import AnalyticsTab from "./components/AnalyticsTab";
@@ -99,21 +96,6 @@ export default function App() {
         setUserId(uid);
 
         const snapshot = await loadAllUserData(uid);
-
-        // Auto-migrate if the user signed in via the migrate flow
-        if (hasPendingMigration()) {
-          clearMigrationFlag();
-          const lsSnapshot = readLocalStorageSnapshot();
-          if (lsSnapshot) {
-            const migrated = applyGymMigrationV1(lsSnapshot);
-            await saveAllUserData(uid, migrated);
-            clearLocalStorage();
-            hydrateState(migrated);
-            setAppState("ready");
-            return;
-          }
-        }
-
         hydrateState(snapshot);
         setAppState("ready");
       },
