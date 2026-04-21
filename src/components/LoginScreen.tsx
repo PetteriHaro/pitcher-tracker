@@ -44,7 +44,7 @@ export default function LoginScreen() {
 
   async function verifyCode() {
     const token = code.trim();
-    if (token.length < 6) return;
+    if (token.length < 6 || token.length > 10) return;
     setLoading(true);
     setError("");
     const { error: err } = await supabase.auth.verifyOtp({
@@ -74,7 +74,7 @@ export default function LoginScreen() {
           <div className="login-icon">✉️</div>
           <h2 className="login-title">Enter code</h2>
           <p className="login-sub">
-            We sent a 6-digit code to <strong>{email}</strong>.
+            We sent a code to <strong>{email}</strong>.
             {migrateMode && " Your training data will be imported after sign-in."}
           </p>
           <form
@@ -87,10 +87,10 @@ export default function LoginScreen() {
               pattern="[0-9]*"
               autoComplete="one-time-code"
               className="login-input login-code-input"
-              placeholder="123456"
+              placeholder="········"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              maxLength={6}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              maxLength={10}
               required
               autoFocus
             />
@@ -142,7 +142,7 @@ export default function LoginScreen() {
       <div className="login-card">
         <div className="login-icon">⚾</div>
         <h1 className="login-title">Pitcher Tracker</h1>
-        <p className="login-sub">Sign in with a 6-digit code sent to your email.</p>
+        <p className="login-sub">Sign in with a code sent to your email.</p>
         <form
           className="login-form"
           onSubmit={(e) => { e.preventDefault(); sendCode(false); }}
