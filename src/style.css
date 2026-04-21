@@ -1387,3 +1387,10 @@ button:focus-visible {
   color: var(--text2);
   text-align: center;
 }
+
+.login-code-input {
+  font-size: 1.4rem !important;
+  text-align: center;
+  letter-spacing: 0.4em;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}

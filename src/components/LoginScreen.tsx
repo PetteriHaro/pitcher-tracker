@@ -12,48 +12,93 @@ export function clearMigrationFlag(): void {
   sessionStorage.removeItem(MIGRATE_FLAG);
 }
 
+type Step = "email" | "code";
+
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<Step>("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [migrateMode, setMigrateMode] = useState(false);
 
   const hasLocalData = readLocalStorageSnapshot() !== null;
 
-  async function sendLink(withMigration: boolean) {
+  async function sendCode(withMigration: boolean) {
     if (!email.trim()) return;
     setLoading(true);
     setError("");
     if (withMigration) sessionStorage.setItem(MIGRATE_FLAG, "1");
-    const redirectTo =
-      window.location.origin + window.location.pathname;
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: redirectTo },
+      options: { shouldCreateUser: true },
     });
     setLoading(false);
     if (err) {
       sessionStorage.removeItem(MIGRATE_FLAG);
       setError(err.message);
     } else {
-      setSent(true);
+      setStep("code");
     }
   }
 
-  if (sent) {
+  async function verifyCode() {
+    const token = code.trim();
+    if (token.length < 6) return;
+    setLoading(true);
+    setError("");
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token,
+      type: "email",
+    });
+    setLoading(false);
+    if (err) {
+      setError(err.message);
+    }
+    // on success, onAuthStateChange in App.tsx takes over
+  }
+
+  function goBack() {
+    setStep("email");
+    setCode("");
+    setError("");
+    sessionStorage.removeItem(MIGRATE_FLAG);
+  }
+
+  if (step === "code") {
     return (
       <div className="login-screen">
         <div className="login-card">
+          <button className="login-back" onClick={goBack}>← Back</button>
           <div className="login-icon">✉️</div>
-          <h2 className="login-title">Check your email</h2>
+          <h2 className="login-title">Enter code</h2>
           <p className="login-sub">
-            We sent a magic link to <strong>{email}</strong>.
+            We sent a 6-digit code to <strong>{email}</strong>.
             {migrateMode && " Your training data will be imported after sign-in."}
           </p>
-          <button className="btn-secondary" style={{ marginTop: 16, width: "100%" }} onClick={() => { setSent(false); setMigrateMode(false); }}>
-            Back
-          </button>
+          <form
+            className="login-form"
+            onSubmit={(e) => { e.preventDefault(); verifyCode(); }}
+          >
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              className="login-input login-code-input"
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              maxLength={6}
+              required
+              autoFocus
+            />
+            <button type="submit" className="btn-primary login-btn" disabled={loading || code.length < 6}>
+              {loading ? "Verifying…" : "Verify & sign in"}
+            </button>
+          </form>
+          {error && <p className="login-error">{error}</p>}
         </div>
       </div>
     );
@@ -71,7 +116,7 @@ export default function LoginScreen() {
           </p>
           <form
             className="login-form"
-            onSubmit={(e) => { e.preventDefault(); sendLink(true); }}
+            onSubmit={(e) => { e.preventDefault(); sendCode(true); }}
           >
             <input
               type="email"
@@ -83,7 +128,7 @@ export default function LoginScreen() {
               autoFocus
             />
             <button type="submit" className="btn-primary login-btn" disabled={loading}>
-              {loading ? "Sending…" : "Sign in & import data"}
+              {loading ? "Sending…" : "Send code & import data"}
             </button>
           </form>
           {error && <p className="login-error">{error}</p>}
@@ -97,10 +142,10 @@ export default function LoginScreen() {
       <div className="login-card">
         <div className="login-icon">⚾</div>
         <h1 className="login-title">Pitcher Tracker</h1>
-        <p className="login-sub">Sign in with a magic link — no password needed.</p>
+        <p className="login-sub">Sign in with a 6-digit code sent to your email.</p>
         <form
           className="login-form"
-          onSubmit={(e) => { e.preventDefault(); sendLink(false); }}
+          onSubmit={(e) => { e.preventDefault(); sendCode(false); }}
         >
           <input
             type="email"
@@ -111,7 +156,7 @@ export default function LoginScreen() {
             required
           />
           <button type="submit" className="btn-primary login-btn" disabled={loading}>
-            {loading ? "Sending…" : "Send magic link"}
+            {loading ? "Sending…" : "Send code"}
           </button>
         </form>
         {error && <p className="login-error">{error}</p>}
