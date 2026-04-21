@@ -126,13 +126,14 @@ function rowToEntry(row: {
 // ---------------------------------------------------------------------------
 
 export async function loadAllUserData(userId: string): Promise<LocalSnapshot> {
-  const [profileRes, scheduleRes, daysRes, exercisesRes, entriesRes] =
+  const [profileRes, scheduleRes, daysRes, exercisesRes, planRes, entriesRes] =
     await Promise.all([
       supabase.from("profiles").select("start_date").eq("user_id", userId).maybeSingle(),
       supabase.from("schedule_days").select("*").eq("user_id", userId),
       supabase.from("training_days").select("*").eq("user_id", userId),
+      supabase.from("exercises").select("*").eq("user_id", userId),
       supabase
-        .from("gym_exercises")
+        .from("plan_days")
         .select("*")
         .eq("user_id", userId)
         .order("sort_order"),
@@ -165,14 +166,22 @@ export async function loadAllUserData(userId: string): Promise<LocalSnapshot> {
     data[row.date] = rowToDay(row);
   }
 
+  // Build lookup of exercises by id (catalog)
+  const exerciseById = new Map<string, { movement: string; sets: string | null }>();
+  for (const ex of exercisesRes.data ?? []) {
+    exerciseById.set(ex.id, { movement: ex.movement, sets: ex.sets });
+  }
+
   const gymPlan: GymPlan = {};
-  for (const row of exercisesRes.data ?? []) {
+  for (const row of planRes.data ?? []) {
+    const ex = exerciseById.get(row.exercise_id);
+    if (!ex) continue;
     const dayName = dayNameFromIndex(row.day_of_week);
     if (!gymPlan[dayName]) gymPlan[dayName] = [];
     gymPlan[dayName].push({
-      id: row.id,
-      movement: row.movement,
-      sets: row.sets ?? undefined,
+      id: row.exercise_id,
+      movement: ex.movement,
+      sets: ex.sets ?? undefined,
     });
   }
 
@@ -238,37 +247,44 @@ export async function saveGymPlanDay(
   exercises: GymExercise[],
 ): Promise<void> {
   const dow = indexFromDayName(dayName);
-  if (exercises.length > 0) {
-    const { error: upErr } = await supabase.from("gym_exercises").upsert(
-      exercises.map((ex, i) => ({
+  // Only persist exercises that have a non-empty movement name —
+  // drafts still being edited stay client-only until committed.
+  const toSave = exercises.filter((ex) => ex.movement.trim().length > 0);
+
+  // 1. Upsert the catalog (exercises). The same id can be referenced by
+  //    multiple plan_days rows, so history is shared across days.
+  if (toSave.length > 0) {
+    const { error: exErr } = await supabase.from("exercises").upsert(
+      toSave.map((ex) => ({
         id: ex.id,
         user_id: userId,
-        day_of_week: dow,
         movement: ex.movement,
         sets: ex.sets ?? null,
-        sort_order: i,
       })),
       { onConflict: "id" },
     );
-    if (upErr) { reportError("Couldn't save gym plan", upErr); throw upErr; }
+    if (exErr) { reportError("Couldn't save gym plan", exErr); throw exErr; }
   }
-  // Remove exercises for this day that are no longer in the list
-  const keepIds = exercises.map((ex) => ex.id);
-  const delQuery =
-    keepIds.length > 0
-      ? supabase
-          .from("gym_exercises")
-          .delete()
-          .eq("user_id", userId)
-          .eq("day_of_week", dow)
-          .not("id", "in", `(${keepIds.map((id) => `"${id}"`).join(",")})`)
-      : supabase
-          .from("gym_exercises")
-          .delete()
-          .eq("user_id", userId)
-          .eq("day_of_week", dow);
-  const { error: delErr } = await delQuery;
+
+  // 2. Replace this day's plan_days rows — delete all for the day, then insert fresh.
+  const { error: delErr } = await supabase
+    .from("plan_days")
+    .delete()
+    .eq("user_id", userId)
+    .eq("day_of_week", dow);
   if (delErr) { reportError("Couldn't save gym plan", delErr); throw delErr; }
+
+  if (toSave.length > 0) {
+    const { error: insErr } = await supabase.from("plan_days").insert(
+      toSave.map((ex, i) => ({
+        user_id: userId,
+        day_of_week: dow,
+        exercise_id: ex.id,
+        sort_order: i,
+      })),
+    );
+    if (insErr) { reportError("Couldn't save gym plan", insErr); throw insErr; }
+  }
 }
 
 export async function appendGymEntry(

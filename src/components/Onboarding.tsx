@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SegmentedControl, Checkbox, TextInput, Button, Stack, Text, Paper } from "@mantine/core";
+import { DatePickerInput } from "@mantine/dates";
 import { getMondayOfWeek, parseISO, toISO } from "../utils/dates";
 import { supabase } from "../utils/supabase";
 import { DAY_NAMES } from "../constants";
@@ -95,6 +96,7 @@ export default function Onboarding({
                   <SegmentedControl
                     size="xs"
                     color="accent"
+                    fullWidth
                     value={cfg.throwType}
                     onChange={(v) =>
                       onScheduleChange(day, { throwType: v as ThrowType, gym: cfg.gym })
@@ -144,11 +146,16 @@ export default function Onboarding({
       <p>The Monday your program begins. Used to calculate week numbers.</p>
       <Paper className="onboarding-inner" p="lg" radius="md" withBorder>
         <Stack gap="sm">
-          <TextInput
+          <DatePickerInput
             label="Start Monday"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.currentTarget.value)}
+            value={startDate ? new Date(startDate) : null}
+            onChange={(d) => {
+              if (!d) return;
+              const date = typeof d === "string" ? new Date(d) : d;
+              setStartDate(date.toISOString().slice(0, 10));
+            }}
+            firstDayOfWeek={1}
+            valueFormat="YYYY-MM-DD"
           />
           <Button color="accent" onClick={finish} fullWidth>
             Get Started

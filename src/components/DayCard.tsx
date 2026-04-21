@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Paper, Group, Text } from "@mantine/core";
+import { IconChevronDown } from "@tabler/icons-react";
 import type { Day, Throwing } from "../types";
 import { MOVEMENT_KEYS, type MovementKey } from "../constants";
 import { formatDate, parseISO } from "../utils/dates";
@@ -38,12 +40,27 @@ export default function DayCard({
   const dateStr = formatDate(parseISO(day.date));
 
   return (
-    <div className={`day-card${isToday ? " today" : ""}${open ? " open" : ""}`}>
-      <div className="day-header" onClick={() => setOpen((o) => !o)}>
-        <div className="day-info">
-          <span className="day-name">{day.dayOfWeek}</span>
-          <span className="day-date">{dateStr}</span>
-          <div className="day-pills">
+    <Paper
+      withBorder
+      radius="md"
+      mb="sm"
+      style={{
+        borderColor: isToday ? "var(--accent2)" : undefined,
+      }}
+    >
+      <Group
+        justify="space-between"
+        p="md"
+        wrap="nowrap"
+        style={{ cursor: "pointer", userSelect: "none" }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Group gap="sm" wrap="nowrap" align="baseline">
+            <Text fw={600}>{day.dayOfWeek}</Text>
+            <Text size="sm" c="dimmed">{dateStr}</Text>
+          </Group>
+          <div className="day-pills" style={{ marginTop: 4 }}>
             <span className="pill pill-move">Move</span>
             {throwPillLabel ? (
               <span className="pill pill-throw">{throwPillLabel}</span>
@@ -53,18 +70,24 @@ export default function DayCard({
             {day.gym && <span className="pill pill-gym">Gym</span>}
           </div>
         </div>
-        <div className="day-right">
+        <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
           <div className="progress-dots">
             {MOVEMENT_KEYS.map((k) => (
               <div key={k} className={`dot${day.movement[k] ? " done" : ""}`} />
             ))}
           </div>
-          <span className="chevron">›</span>
-        </div>
-      </div>
+          <IconChevronDown
+            size={18}
+            style={{
+              transform: open ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s",
+            }}
+          />
+        </Group>
+      </Group>
 
       {open && (
-        <div className="day-body">
+        <div style={{ padding: "0 12px 12px" }}>
           <MovementSection
             movement={day.movement}
             onChange={onMovementChange}
@@ -77,6 +100,6 @@ export default function DayCard({
           <GymSection gym={day.gym} onToggle={onGymToggle} onOpenGymTab={onOpenGymTab} />
         </div>
       )}
-    </div>
+    </Paper>
   );
 }

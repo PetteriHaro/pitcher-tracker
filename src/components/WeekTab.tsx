@@ -1,3 +1,5 @@
+import { ActionIcon } from "@mantine/core";
+import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import type { DayData, Day, Throwing, ThrowType, Schedule } from "../types";
 import type { MovementKey } from "../constants";
 import {
@@ -99,9 +101,14 @@ export default function WeekTab({
   return (
     <div className="tab-panel">
       <div className="week-nav">
-        <button className="nav-btn" onClick={() => onWeekChange(-1)}>
-          ‹
-        </button>
+        <ActionIcon
+          variant="default"
+          size="xl"
+          onClick={() => onWeekChange(-1)}
+          aria-label="Previous week"
+        >
+          <IconChevronLeft size={20} />
+        </ActionIcon>
         <div className="week-label">
           <strong>
             Week {weekNum}
@@ -111,9 +118,14 @@ export default function WeekTab({
             {formatDate(weekStart)} – {formatDate(weekEnd)}
           </span>
         </div>
-        <button className="nav-btn" onClick={() => onWeekChange(1)}>
-          ›
-        </button>
+        <ActionIcon
+          variant="default"
+          size="xl"
+          onClick={() => onWeekChange(1)}
+          aria-label="Next week"
+        >
+          <IconChevronRight size={20} />
+        </ActionIcon>
       </div>
 
       <WeeklySummary days={days} />

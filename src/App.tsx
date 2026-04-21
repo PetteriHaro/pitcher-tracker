@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { ActionIcon, Tabs } from "@mantine/core";
+import { IconSettings } from "@tabler/icons-react";
 import type { DayData, Day, GymPlan, GymProgress, Schedule } from "./types";
 import {
   loadAllUserData,
@@ -229,22 +231,26 @@ export default function App() {
           <span className="app-title">Pitcher Tracker</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {deload && <span className="deload-badge">Deload</span>}
-            <button className="settings-btn" onClick={() => setSettingsModalOpen(true)}>
-              ⚙️
-            </button>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              onClick={() => setSettingsModalOpen(true)}
+              aria-label="Open settings"
+            >
+              <IconSettings size={20} />
+            </ActionIcon>
           </div>
         </div>
-        <div className="tabs">
-          {(["week", "gym"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              className={`tab-btn${activeTab === tab ? " active" : ""}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === "week" ? "Week" : "Gym"}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          value={activeTab}
+          onChange={(v) => v && setActiveTab(v as Tab)}
+          color="accent"
+        >
+          <Tabs.List>
+            <Tabs.Tab value="week">Week</Tabs.Tab>
+            <Tabs.Tab value="gym">Gym</Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
       </div>
 
       {activeTab === "week" && (

@@ -16,25 +16,30 @@ export const MOVEMENT_EXERCISES: Record<MovementKey, Exercise[]> = {
     },
     {
       name: "Open book rotations",
-      target: "8/side",
+      target: "10/side",
       description:
         "Lie on side, knees stacked at 90°. Open top arm up and over, rotating upper back. Follow hand with eyes. Keep knees stacked.",
     },
     {
-      name: "Prone cobra hold",
-      target: "2 × 30s",
-      description:
-        "Face down, lift chest, arms out to sides, thumbs up. Squeeze between shoulder blades.",
-    },
-    {
       name: "Seated spinal twist",
-      target: "30s/side",
+      target: "45s/side",
       description:
         "One leg extended, cross other foot over. Twist toward bent knee using opposite elbow.",
     },
     {
+      name: "T-Spine extension",
+      target: "45s",
+      description:
+        "Elbows on chair or table and push chest towards the ground.",
+    },
+    {
+      name: "Foam roller T-Spine extension",
+      target: "2 x 30s",
+      description: "Extend the T-Spine using a foam roller.",
+    },
+    {
       name: "Bridge",
-      target: "3 × 20s",
+      target: "3 x 20s",
       description:
         "Glute bridge. Progress toward full back bridge or wall walkdowns over weeks.",
     },
@@ -79,16 +84,26 @@ export const MOVEMENT_EXERCISES: Record<MovementKey, Exercise[]> = {
   ],
   hips: [
     {
-      name: "Prone hip internal rotation",
-      target: "60s/side",
-      description:
-        "Face down, bend one knee to 90°. Pull ankle toward ceiling by rotating thigh inward. Work at end range.",
+      name: "Groin stretch",
+      target: "2 x 45s",
+      description: "Spread your knees while being on the ground.",
     },
     {
       name: "Groin foam rolling",
       target: "90s/side",
       description:
         "Face down, inner thigh on roller. Roll slowly from knee toward groin. Extra time on tender spots. Focus right side.",
+    },
+    {
+      name: "Groin while laying down",
+      target: "60s",
+      description: "Lay on back and stretch groins",
+    },
+    {
+      name: "Prone hip internal rotation",
+      target: "60s/side",
+      description:
+        "Face down, bend one knee to 90°. Pull ankle toward ceiling by rotating thigh inward. Work at end range.",
     },
     {
       name: "90/90 hold with forward lean",
@@ -109,28 +124,15 @@ export const MOVEMENT_EXERCISES: Record<MovementKey, Exercise[]> = {
         "Back knee down, squeeze glute, lean forward. Reach same-side arm overhead and lean away. Opens hip flexor, oblique, and lat.",
     },
     {
-      name: "Lateral split stretch",
-      target: "3 × 60s",
-      description:
-        "Stand with feet wide, slowly lower into a side split. Keep toes pointing forward, back straight. Ease deeper each hold.",
-    },
-    {
       name: "Horizontal split stretch",
-      target: "3 × 60s",
+      target: "60s",
       description:
         "From a lunge, extend back leg straight and slide front leg forward into a front split. Keep hips square and torso upright.",
     },
     {
-      name: "Deep squat hold",
-      target: "90s",
-      description:
-        "Feet wider than shoulders, toes out, sink deep. Elbows push knees out. Heels on floor.",
-    },
-    {
-      name: "Wall ankle dorsiflexion",
+      name: "Hamstring stretch",
       target: "10/side",
-      description:
-        "Face wall, foot ~10cm away. Drive knee over toes to touch wall, heel stays down. Move foot further back as range improves.",
+      description: "Bend over and touch ground and start streching.",
     },
   ],
   balance: [
@@ -153,23 +155,17 @@ export const MOVEMENT_EXERCISES: Record<MovementKey, Exercise[]> = {
       description:
         "On back, arms toward ceiling, knees 90° over hips. Lower opposite arm and leg. Lower back stays pressed to floor. Breathe out as you extend.",
     },
-    {
-      name: "Rotational ground-up twist",
-      target: "8/side",
-      description:
-        "Wide split stance. Rotate trunk explosively from back hip toward front leg, pivoting back foot. Sequence: feet → hips → trunk → arms.",
-    },
   ],
   inversions: [
     {
       name: "Pike hold",
-      target: "3 × 20–30s",
+      target: "3 x 20-30s",
       description:
         "Hands on floor, feet on chair/bench, walk hands back so hips are as high as possible. As this gets comfortable, raise the surface height.",
     },
     {
       name: "Downward dog hold",
-      target: "3 × 20s",
+      target: "3 x 20s",
       description:
         "Hands and feet on floor, push hips up and back, press chest toward thighs. Press hands into floor and push shoulders open.",
     },

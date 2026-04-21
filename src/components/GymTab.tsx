@@ -1,5 +1,23 @@
 import { useState } from "react";
-import { NumberInput, Button, Modal, Group } from "@mantine/core";
+import {
+  NumberInput,
+  Button,
+  Modal,
+  Group,
+  Paper,
+  ActionIcon,
+  TextInput,
+  Text,
+} from "@mantine/core";
+import {
+  IconPencil,
+  IconArrowUp,
+  IconArrowDown,
+  IconTrash,
+  IconPlus,
+  IconChevronDown,
+  IconX,
+} from "@tabler/icons-react";
 import type { GymExercise, GymPlan, GymProgress, GymEntry, Schedule } from "../types";
 import { DAY_NAMES } from "../constants";
 
@@ -56,9 +74,6 @@ function ProgressModal({
   const preview = entry ? formatEntry(entry) : "";
   const current = history.length > 0 ? formatEntry(history[history.length - 1]) : null;
 
-  function stepDelta(amount: number) {
-    setDeltaVal((v) => (v ?? 0) + amount);
-  }
 
   return (
     <Modal
@@ -70,12 +85,15 @@ function ProgressModal({
           {current && last && (
             <div className="gym-modal-current" style={{ marginTop: 4 }}>
               <span>{current}</span>
-              <button
-                type="button"
-                className="gym-history-del"
+              <ActionIcon
+                size="xs"
+                variant="subtle"
+                color="red"
                 aria-label="Delete latest entry"
                 onClick={() => onDelete(last.id)}
-              >×</button>
+              >
+                <IconX size={14} />
+              </ActionIcon>
             </div>
           )}
         </div>
@@ -88,40 +106,39 @@ function ProgressModal({
           {history.slice(0, -1).map((e) => (
             <span key={e.id} className="gym-history-chip">
               {formatEntry(e)}
-              <button
-                type="button"
-                className="gym-history-del"
+              <ActionIcon
+                size="xs"
+                variant="subtle"
+                color="red"
                 aria-label="Delete entry"
                 onClick={() => onDelete(e.id)}
-              >×</button>
+              >
+                <IconX size={14} />
+              </ActionIcon>
             </span>
           ))}
         </div>
       )}
-      <div className="gym-entry-row">
-        <div className="gym-entry-field">
-          <label className="gym-entry-label">Kg</label>
-          <NumberInput
-            value={kg === "" ? "" : Number(kg)}
-            onChange={(v) => setKg(v === "" || v === undefined ? "" : String(v))}
-            placeholder="—"
-            min={0}
-            step={0.25}
-            decimalScale={2}
-            hideControls
-          />
-        </div>
-        <div className="gym-entry-field">
-          <label className="gym-entry-label">Reps +/−</label>
-          <div className="gym-stepper">
-            <button type="button" className="gym-step-btn" onClick={() => stepDelta(-1)}>−</button>
-            <span className="gym-step-val">
-              {deltaVal === null ? "—" : deltaVal > 0 ? `+${deltaVal}` : `${deltaVal}`}
-            </span>
-            <button type="button" className="gym-step-btn" onClick={() => stepDelta(1)}>+</button>
-          </div>
-        </div>
-      </div>
+      <Group grow gap="md" align="flex-end">
+        <NumberInput
+          label="Kg"
+          value={kg === "" ? "" : Number(kg)}
+          onChange={(v) => setKg(v === "" || v === undefined ? "" : String(v))}
+          placeholder="—"
+          min={0}
+          step={0.25}
+          decimalScale={2}
+          hideControls
+        />
+        <NumberInput
+          label="Reps +/−"
+          value={deltaVal ?? ""}
+          onChange={(v) => setDeltaVal(v === "" || v === undefined ? null : Number(v))}
+          placeholder="—"
+          step={1}
+          allowDecimal={false}
+        />
+      </Group>
       {preview && (
         <div className="gym-entry-preview">Will append: <strong>{preview}</strong></div>
       )}
@@ -172,9 +189,11 @@ function DayPlanCard({
     if (movement === "") {
       onPlanChange(exercises.filter((_, idx) => idx !== i));
     } else {
-      // Reuse an existing exercise's ID if movement matches a known one,
-      // so history is preserved when re-adding.
-      const existing = suggestions.find((s) => s.movement.toLowerCase() === movement.toLowerCase());
+      // If the user's movement matches an exercise they already have on another
+      // (or this) day, reuse its id so progress history is shared across days.
+      const existing = suggestions.find(
+        (s) => s.movement.toLowerCase() === movement.toLowerCase(),
+      );
       onPlanChange(exercises.map((ex, idx) =>
         idx === i
           ? existing
@@ -187,51 +206,70 @@ function DayPlanCard({
   }
 
   return (
-    <div className={`day-card${open ? " open" : ""}`}>
-      <div className="day-header" onClick={() => setOpen((o) => !o)}>
-        <div className="day-info">
-          <span className="day-name">{dayName}</span>
-          <span className="day-date">{exercises.length} exercises</span>
-        </div>
-        <div className="day-right">
-          <span className="chevron">›</span>
-        </div>
-      </div>
+    <Paper withBorder radius="md" mb="sm">
+      <Group
+        justify="space-between"
+        p="md"
+        style={{ cursor: "pointer", userSelect: "none" }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Group gap="sm">
+          <Text fw={600}>{dayName}</Text>
+          <Text size="sm" c="dimmed">{exercises.length} exercises</Text>
+        </Group>
+        <IconChevronDown
+          size={18}
+          style={{
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s",
+          }}
+        />
+      </Group>
+
       {open && (
-        <div className="day-body">
+        <div style={{ padding: "0 12px 12px" }}>
           {exercises.map((ex, i) => {
             const history = gymProgress[ex.id] ?? [];
             const current = history.length > 0 ? formatEntry(history[history.length - 1]) : null;
             const isEditing = editIdx === i;
             return (
-              <div key={ex.id} className="gym-plan-row" onClick={() => { if (!isEditing && ex.movement) onExerciseTap(ex); }}>
+              <Paper
+                key={ex.id}
+                withBorder
+                radius="sm"
+                p="sm"
+                mb={6}
+                bg="dark.6"
+                onClick={() => { if (!isEditing && ex.movement) onExerciseTap(ex); }}
+                style={{ cursor: isEditing ? "default" : "pointer" }}
+              >
                 {isEditing ? (
-                  <div className="gym-edit-wrap" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      className="gym-name-input"
-                      placeholder="Movement (e.g. Lateral raise)"
-                      value={editMovement}
-                      onChange={(e) => { setEditMovement(e.target.value); setShowSuggestions(true); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { commit(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditIdx(null); setShowSuggestions(false); } }}
-                      autoFocus
-                    />
-                    <input
-                      className="gym-sets-input"
-                      placeholder="Sets (e.g. 4x10)"
-                      value={editSets}
-                      onChange={(e) => setEditSets(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { commit(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditIdx(null); setShowSuggestions(false); } }}
-                    />
-                    <div className="gym-edit-actions">
-                      <Button variant="default" size="sm" onClick={() => setEditIdx(null)}>Cancel</Button>
-                      <Button color="accent" size="sm" onClick={() => { commit(i); setShowSuggestions(false); }}>Save</Button>
-                    </div>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Group gap="xs" align="flex-start" wrap="nowrap" style={{ position: "relative" }}>
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                        <TextInput
+                          size="sm"
+                          placeholder="Movement (e.g. Lateral raise)"
+                          value={editMovement}
+                          onChange={(e) => { setEditMovement(e.currentTarget.value); setShowSuggestions(true); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") { commit(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditIdx(null); setShowSuggestions(false); } }}
+                          autoFocus
+                        />
+                        <TextInput
+                          size="sm"
+                          placeholder="Sets (e.g. 4x10)"
+                          value={editSets}
+                          onChange={(e) => setEditSets(e.currentTarget.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { commit(i); setShowSuggestions(false); } if (e.key === "Escape") { setEditIdx(null); setShowSuggestions(false); } }}
+                        />
+                      </div>
+                    </Group>
                     {showSuggestions && (() => {
                       const q = editMovement.trim().toLowerCase();
                       if (q === "") return null;
                       const matches = suggestions.filter((s) => s.movement.toLowerCase().includes(q) && s.movement !== editMovement);
                       return matches.length > 0 ? (
-                        <div className="gym-suggestions">
+                        <Paper withBorder mt={4} p={4}>
                           {matches.map((s) => (
                             <div
                               key={s.id}
@@ -246,16 +284,47 @@ function DayPlanCard({
                               {formatExerciseLabel(s)}
                             </div>
                           ))}
-                        </div>
+                        </Paper>
                       ) : null;
                     })()}
+                    <Group justify="space-between" mt="xs">
+                      <Button
+                        variant="light"
+                        color="red"
+                        size="xs"
+                        leftSection={<IconTrash size={14} />}
+                        onClick={() => {
+                          onPlanChange(exercises.filter((_, idx) => idx !== i));
+                          setEditIdx(null);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                      <Group gap="xs">
+                        <Button
+                          variant="default"
+                          size="xs"
+                          onClick={() => setEditIdx(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          color="accent"
+                          size="xs"
+                          onClick={() => { commit(i); setShowSuggestions(false); }}
+                        >
+                          Save
+                        </Button>
+                      </Group>
+                    </Group>
                   </div>
                 ) : (
-                  <>
-                    <div className="gym-reorder-btns">
-                      <button
-                        type="button"
-                        className="gym-reorder-btn"
+                  <Group justify="space-between" wrap="nowrap" gap="xs">
+                    <Group gap={2} wrap="nowrap">
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="gray"
                         disabled={i === 0}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -263,10 +332,14 @@ function DayPlanCard({
                           [next[i - 1], next[i]] = [next[i], next[i - 1]];
                           onPlanChange(next);
                         }}
-                      >▲</button>
-                      <button
-                        type="button"
-                        className="gym-reorder-btn"
+                        aria-label="Move up"
+                      >
+                        <IconArrowUp size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="gray"
                         disabled={i === exercises.length - 1}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -274,47 +347,56 @@ function DayPlanCard({
                           [next[i], next[i + 1]] = [next[i + 1], next[i]];
                           onPlanChange(next);
                         }}
-                      >▼</button>
-                    </div>
-                    <div className="gym-progress-name">
+                        aria-label="Move down"
+                      >
+                        <IconArrowDown size={16} />
+                      </ActionIcon>
+                    </Group>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       {ex.movement ? (
                         <>
-                          <span className="gym-ex-movement">{ex.movement}</span>
-                          {ex.sets && <span className="gym-ex-sets">{ex.sets}</span>}
+                          <Text size="sm" fw={500} truncate>{ex.movement}</Text>
+                          {ex.sets && <Text size="xs" c="dimmed">{ex.sets}</Text>}
                         </>
                       ) : (
-                        <span style={{ color: "var(--border)" }}>Unnamed</span>
+                        <Text size="sm" c="dimmed" fs="italic">Unnamed</Text>
                       )}
                     </div>
-                    <span className="gym-progress-weights">{current ?? <span style={{ color: "var(--border)" }}>—</span>}</span>
-                    <button
-                      type="button"
-                      className="gym-edit-name-btn"
+                    <Text size="sm" c="amber.5" fw={600} className="gym-progress-weights">
+                      {current ?? <Text component="span" size="sm" c="dimmed">—</Text>}
+                    </Text>
+                    <ActionIcon
+                      variant="subtle"
+                      color="accent"
                       onClick={(e) => { e.stopPropagation(); startEdit(i); }}
-                    >✎</button>
-                  </>
+                      aria-label="Edit exercise"
+                    >
+                      <IconPencil size={16} />
+                    </ActionIcon>
+                  </Group>
                 )}
-                <button
-                  type="button"
-                  className="gym-delete-btn"
-                  onClick={(e) => { e.stopPropagation(); onPlanChange(exercises.filter((_, idx) => idx !== i)); }}
-                >×</button>
-              </div>
+              </Paper>
             );
           })}
-          <button type="button" className="gym-add-btn" onClick={() => {
-            const newEx: GymExercise = { id: generateId(), movement: "" };
-            const newExercises = [...exercises, newEx];
-            onPlanChange(newExercises);
-            setEditIdx(newExercises.length - 1);
-            setEditMovement("");
-            setEditSets("");
-          }}>
-            + Add exercise
-          </button>
+          <Button
+            variant="light"
+            fullWidth
+            size="sm"
+            leftSection={<IconPlus size={16} />}
+            onClick={() => {
+              const newEx: GymExercise = { id: generateId(), movement: "" };
+              const newExercises = [...exercises, newEx];
+              onPlanChange(newExercises);
+              setEditIdx(newExercises.length - 1);
+              setEditMovement("");
+              setEditSets("");
+            }}
+          >
+            Add exercise
+          </Button>
         </div>
       )}
-    </div>
+    </Paper>
   );
 }
 

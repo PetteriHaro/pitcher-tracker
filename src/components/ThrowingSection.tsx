@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { Checkbox, NumberInput, Select, Button, Modal, Group } from "@mantine/core";
+import {
+  Checkbox,
+  NumberInput,
+  Select,
+  Button,
+  Modal,
+  Group,
+  SegmentedControl,
+  ActionIcon,
+  Paper,
+} from "@mantine/core";
+import { IconX, IconInfoCircle } from "@tabler/icons-react";
 import type { Throwing } from "../types";
 import { INTENSITY_OPTIONS } from "../constants";
 import { JAVELIN_PROGRAM, POST_THROW_RECOVERY } from "../throwingExercises";
@@ -16,51 +27,45 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
 
   if (!throwing) {
     return (
-      <div className="section">
-        <div className="section-title">Throwing</div>
-        <div className="add-session-btns">
-          <Button
-            variant="light"
-            color="accent"
-            onClick={() => onToggle("javelin_longtoss")}
-          >
+      <Paper withBorder p="md" radius="md" mt="md" bg="dark.6">
+        <div className="section-title" style={{ marginBottom: 10 }}>Throwing</div>
+        <Group grow gap="xs">
+          <Button variant="light" color="accent" onClick={() => onToggle("javelin_longtoss")}>
             + Jav + LT
           </Button>
-          <Button
-            variant="light"
-            color="accent"
-            onClick={() => onToggle("mound_bullpen")}
-          >
+          <Button variant="light" color="accent" onClick={() => onToggle("mound_bullpen")}>
             + Mound
           </Button>
-        </div>
-      </div>
+        </Group>
+      </Paper>
     );
   }
 
   const isJavelin = throwing.type === "javelin_longtoss";
 
   return (
-    <div className="section">
-      <div className="section-header-row">
-        <div className="throw-type-tabs">
-          <button
-            className={`throw-type-tab${isJavelin ? " active" : ""}`}
-            onClick={() => onToggle("javelin_longtoss")}
-          >
-            Jav + LT
-          </button>
-          <button
-            className={`throw-type-tab${!isJavelin ? " active" : ""}`}
-            onClick={() => onToggle("mound_bullpen")}
-          >
-            Mound
-          </button>
-        </div>
-        <button className="btn-remove-section" onClick={() => onToggle(null)}>
-          Remove
-        </button>
-      </div>
+    <Paper withBorder p="md" radius="md" mt="md" bg="dark.6">
+      <Group justify="space-between" mb="sm" wrap="nowrap">
+        <SegmentedControl
+          size="xs"
+          color="accent"
+          value={throwing.type}
+          onChange={(v) => onToggle(v as "javelin_longtoss" | "mound_bullpen")}
+          data={[
+            { label: "Jav + LT", value: "javelin_longtoss" },
+            { label: "Mound", value: "mound_bullpen" },
+          ]}
+          style={{ flex: 1 }}
+        />
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          onClick={() => onToggle(null)}
+          aria-label="Remove throwing session"
+        >
+          <IconX size={16} />
+        </ActionIcon>
+      </Group>
 
       {isJavelin && (
         <div className="check-row">
@@ -72,13 +77,14 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
             onChange={(e) => onChange("javelinDone", e.currentTarget.checked)}
             style={{ flex: 1 }}
           />
-          <button
-            className="info-btn"
+          <ActionIcon
+            variant="subtle"
+            color="gray"
             onClick={() => setShowJavelin(true)}
             aria-label="Show javelin program"
           >
-            ?
-          </button>
+            <IconInfoCircle size={18} />
+          </ActionIcon>
         </div>
       )}
 
@@ -144,13 +150,14 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
           onChange={(e) => onChange("postThrowRecovery", e.currentTarget.checked)}
           style={{ flex: 1 }}
         />
-        <button
-          className="info-btn"
+        <ActionIcon
+          variant="subtle"
+          color="gray"
           onClick={() => setShowRecovery(true)}
           aria-label="Show post-throw recovery exercises"
         >
-          ?
-        </button>
+          <IconInfoCircle size={18} />
+        </ActionIcon>
       </div>
 
       <Modal
@@ -198,6 +205,6 @@ export default function ThrowingSection({ throwing, onChange, onToggle }: Props)
           <Button color="accent" onClick={() => setShowRecovery(false)}>Done</Button>
         </Group>
       </Modal>
-    </div>
+    </Paper>
   );
 }

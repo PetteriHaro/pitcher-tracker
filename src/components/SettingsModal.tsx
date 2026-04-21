@@ -3,7 +3,6 @@ import { useForm, hasLength } from "@mantine/form";
 import {
   SegmentedControl,
   Checkbox,
-  TextInput,
   PasswordInput,
   Button,
   Stack,
@@ -11,6 +10,7 @@ import {
   Group,
   Modal,
 } from "@mantine/core";
+import { DatePickerInput } from "@mantine/dates";
 import { getMondayOfWeek, parseISO, toISO } from "../utils/dates";
 import { supabase } from "../utils/supabase";
 import type { Schedule, ThrowType } from "../types";
@@ -73,11 +73,17 @@ export default function SettingsModal({
 
   return (
     <Modal opened={isOpen} onClose={onClose} title="Settings" centered size="md">
-      <TextInput
+      <DatePickerInput
         label="Program start date"
-        type="date"
-        value={value}
-        onChange={(e) => setValue(e.currentTarget.value)}
+        value={value ? new Date(value) : null}
+        onChange={(d) => {
+          if (!d) return;
+          const date = typeof d === "string" ? new Date(d) : d;
+          const iso = date.toISOString().slice(0, 10);
+          setValue(iso);
+        }}
+        firstDayOfWeek={1}
+        valueFormat="YYYY-MM-DD"
       />
 
       <div style={{ borderTop: "1px solid var(--border)", margin: "16px 0" }} />
@@ -92,6 +98,7 @@ export default function SettingsModal({
               <SegmentedControl
                 size="xs"
                 color="accent"
+                fullWidth
                 value={cfg.throwType}
                 onChange={(v) =>
                   onScheduleChange(day, { throwType: v as ThrowType, gym: cfg.gym })
@@ -120,34 +127,12 @@ export default function SettingsModal({
 
       <div className="section-title" style={{ marginBottom: 10 }}>Account</div>
       <Stack gap="xs">
-        {!showPwForm ? (
-          <Button
-            variant="default"
-            onClick={() => { setShowPwForm(true); setPwInfo(""); setPwError(""); }}
-          >
-            Set / change password
-          </Button>
-        ) : (
-          <form onSubmit={pwForm.onSubmit(handleChangePassword)}>
-            <Stack gap="xs">
-              <PasswordInput
-                placeholder="New password (min 8 chars)"
-                autoComplete="new-password"
-                {...pwForm.getInputProps("password")}
-              />
-              <Group grow gap="xs">
-                <Button
-                  variant="default"
-                  onClick={() => { setShowPwForm(false); pwForm.reset(); setPwError(""); }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" color="accent">Save password</Button>
-              </Group>
-              {pwError && <Text size="sm" c="red">{pwError}</Text>}
-            </Stack>
-          </form>
-        )}
+        <Button
+          variant="default"
+          onClick={() => { setShowPwForm(true); setPwInfo(""); setPwError(""); pwForm.reset(); }}
+        >
+          Set / change password
+        </Button>
         {pwInfo && <Text size="sm" c="green">{pwInfo}</Text>}
         <Button variant="default" onClick={handleSignOut}>Sign out</Button>
       </Stack>
@@ -156,6 +141,35 @@ export default function SettingsModal({
         <Button variant="default" onClick={onClose}>Cancel</Button>
         <Button color="accent" onClick={handleSave}>Save</Button>
       </Group>
+
+      <Modal
+        opened={showPwForm}
+        onClose={() => { setShowPwForm(false); pwForm.reset(); setPwError(""); }}
+        title="Change password"
+        centered
+        size="sm"
+      >
+        <form onSubmit={pwForm.onSubmit(handleChangePassword)}>
+          <Stack gap="sm">
+            <PasswordInput
+              placeholder="New password (min 8 chars)"
+              autoComplete="new-password"
+              autoFocus
+              {...pwForm.getInputProps("password")}
+            />
+            {pwError && <Text size="sm" c="red">{pwError}</Text>}
+            <Group justify="flex-end" gap="xs">
+              <Button
+                variant="default"
+                onClick={() => { setShowPwForm(false); pwForm.reset(); setPwError(""); }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" color="accent">Save password</Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
     </Modal>
   );
 }

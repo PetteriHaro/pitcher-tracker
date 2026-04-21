@@ -65,27 +65,6 @@ body {
 }
 
 /* Tabs */
-.tabs {
-  display: flex;
-  gap: 4px;
-}
-.tab-btn {
-  background: none;
-  border: none;
-  color: var(--text2);
-  font-size: 0.9rem;
-  padding: 8px 12px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-  white-space: nowrap;
-}
-.tab-btn.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
 
 /* Tab panels */
 @keyframes tab-fade {
@@ -114,23 +93,6 @@ body {
 .week-label span {
   font-size: 0.75rem;
   color: var(--text2);
-}
-.nav-btn {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text);
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-.nav-btn:active {
-  background: var(--border);
 }
 
 /* Weekly summary */
@@ -161,47 +123,6 @@ body {
 }
 
 /* Day cards */
-.day-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 10px;
-  overflow: hidden;
-}
-.day-card.today {
-  border-color: var(--accent2);
-}
-.day-card.today .day-header {
-  background: linear-gradient(135deg, #1a1e30 0%, #1a1a20 100%);
-}
-.day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  min-height: 52px;
-}
-.day-header:active {
-  background: var(--bg3);
-}
-.day-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.day-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-  min-width: 36px;
-}
-.day-date {
-  font-size: 0.75rem;
-  color: var(--text2);
-}
 .day-pills {
   display: flex;
   gap: 4px;
@@ -231,42 +152,22 @@ body {
   background: #2a1e1e;
   color: #e05555;
 }
-.day-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 .progress-dots {
   display: flex;
   gap: 2px;
 }
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--border);
+  background: var(--bg3);
+  border: 1px solid var(--border);
 }
 .dot.done {
   background: var(--green);
-}
-.chevron {
-  color: var(--text2);
-  font-size: 0.8rem;
-  transition: transform 0.2s;
-}
-.day-card.open .chevron {
-  transform: rotate(90deg);
+  border-color: var(--green);
 }
 
-@keyframes day-body-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.day-body {
-  padding: 0 14px 14px;
-  border-top: 1px solid var(--border);
-  animation: day-body-in 0.15s ease;
-}
 
 /* Sections */
 .section {
@@ -292,30 +193,6 @@ body {
 .check-row {
   display: flex;
   align-items: center;
-}
-.check-row .check-item {
-  flex: 1;
-}
-.info-btn {
-  background: none;
-  border: 1.5px solid var(--border);
-  color: var(--text2);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-left: 4px;
-  -webkit-tap-highlight-color: transparent;
-}
-.info-btn:active {
-  background: var(--bg3);
 }
 
 /* Exercise modal content */
@@ -370,10 +247,6 @@ body {
   color: var(--text);
   flex: 1;
 }
-.field-sub {
-  font-size: 0.72rem;
-  color: var(--text2);
-}
 input[type="number"],
 input[type="text"],
 input[type="date"],
@@ -414,12 +287,6 @@ textarea {
 
 
 /* Rest day */
-.rest-msg {
-  text-align: center;
-  color: var(--text2);
-  font-size: 0.85rem;
-  padding: 16px 0 4px;
-}
 
 /* Onboarding */
 .onboarding {
@@ -450,28 +317,8 @@ textarea {
 }
 
 /* Settings btn */
-.settings-btn {
-  background: none;
-  border: none;
-  color: var(--text2);
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 8px;
-  min-width: 44px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* Empty state */
-.empty-state {
-  text-align: center;
-  color: var(--text2);
-  font-size: 0.85rem;
-  padding: 32px 0;
-  line-height: 1.6;
-}
 
 button:focus-visible {
   outline: 2px solid var(--accent);
@@ -528,167 +375,6 @@ button:focus-visible {
 }
 
 /* Gym tab */
-.gym-count {
-  font-size: 0.72rem;
-  color: var(--text2);
-  margin-right: 4px;
-}
-.gym-table-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding-bottom: 6px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text2);
-}
-.gym-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  align-items: center;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border);
-}
-.gym-row:last-of-type {
-  border-bottom: none;
-}
-.gym-name-input,
-.gym-weights-input {
-  width: 100%;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 8px 10px;
-  font-size: 0.85rem;
-  font-family: inherit;
-  color: var(--text);
-  outline: none;
-  -webkit-appearance: none;
-}
-.gym-name-input:focus,
-.gym-weights-input:focus {
-  border-color: var(--accent);
-}
-.gym-weights-input {
-  color: var(--amber);
-}
-.gym-weights-input:focus {
-  border-color: var(--amber);
-}
-.gym-delete-btn {
-  background: none;
-  border: none;
-  color: var(--border);
-  font-size: 1.3rem;
-  cursor: pointer;
-  padding: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 8px;
-  line-height: 1;
-}
-.gym-delete-btn:active {
-  color: var(--red);
-}
-.gym-add-btn {
-  background: none;
-  border: 1px dashed var(--border);
-  color: var(--text2);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  width: 100%;
-  margin-top: 10px;
-  min-height: 44px;
-}
-.gym-add-btn:active {
-  background: var(--bg3);
-}
-.gym-edit-name-btn {
-  background: none;
-  border: none;
-  color: var(--border);
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 8px;
-  line-height: 1;
-  margin-left: auto;
-}
-.gym-edit-name-btn:active {
-  color: var(--amber);
-}
-.gym-reorder-btns {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  margin-right: 2px;
-}
-.gym-reorder-btn {
-  background: none;
-  border: none;
-  color: var(--border);
-  font-size: 0.6rem;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  line-height: 1;
-}
-.gym-reorder-btn:active {
-  color: var(--text1);
-}
-.gym-reorder-btn:disabled {
-  opacity: 0.2;
-  cursor: default;
-}
-.gym-name-input-wrap {
-  flex: 1;
-  position: relative;
-  min-width: 0;
-}
-.gym-name-input {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--bg3);
-  border: 1px solid var(--amber);
-  border-radius: 6px;
-  color: var(--text1);
-  font-size: 0.9rem;
-  padding: 4px 8px;
-  min-width: 0;
-}
-.gym-suggestions {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  z-index: 100;
-  overflow: hidden;
-}
 .gym-suggestion-item {
   padding: 10px 12px;
   font-size: 0.9rem;
@@ -698,38 +384,6 @@ button:focus-visible {
 .gym-suggestion-item:active {
   background: var(--bg3);
   color: var(--amber);
-}
-.gym-section-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text2);
-  margin-bottom: 8px;
-}
-.gym-plan-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.gym-plan-row:last-of-type {
-  border-bottom: none;
-}
-.gym-plan-row:active {
-  opacity: 0.7;
-}
-.gym-progress-name {
-  flex: 1;
-  font-size: 0.88rem;
-  color: var(--text);
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .gym-progress-weights {
   font-size: 0.85rem;
@@ -757,71 +411,6 @@ button:focus-visible {
   font-size: 0.8rem;
   color: var(--amber);
   white-space: nowrap;
-}
-.gym-entry-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.gym-entry-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.gym-entry-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text2);
-}
-.gym-entry-input {
-  width: 100%;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 7px;
-  padding: 10px 10px;
-  font-size: 1rem;
-  font-family: inherit;
-  outline: none;
-  -webkit-appearance: none;
-}
-.gym-entry-input:focus {
-  border-color: var(--accent);
-}
-.gym-stepper {
-  display: flex;
-  align-items: center;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  overflow: hidden;
-  height: 42px;
-}
-.gym-step-btn {
-  width: 42px;
-  height: 100%;
-  background: none;
-  border: none;
-  color: var(--text);
-  font-size: 1.3rem;
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.gym-step-btn:active {
-  background: var(--border);
-}
-.gym-step-val {
-  flex: 1;
-  text-align: center;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--amber);
 }
 .gym-entry-preview {
   font-size: 0.82rem;
@@ -891,12 +480,6 @@ button:focus-visible {
   text-align: center;
   letter-spacing: -0.02em;
 }
-.login-sub {
-  font-size: 0.85rem;
-  color: var(--text2);
-  text-align: center;
-  margin-bottom: 8px;
-}
 /* ── Schedule editor (Settings) ────────────────────────────────────────────── */
 .schedule-editor {
   display: flex;
@@ -929,75 +512,14 @@ button:focus-visible {
 }
 
 /* ── Gym exercise: movement + sets ─────────────────────────────────────────── */
-.gym-ex-movement {
-  display: block;
-  font-weight: 500;
-}
-.gym-ex-sets {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text2);
-  margin-top: 2px;
-}
 
 /* ── Gym edit wrap (two fields + actions) ──────────────────────────────────── */
-.gym-edit-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
-  padding-right: 32px; /* room for delete × */
-}
-.gym-edit-wrap .gym-name-input,
-.gym-edit-wrap .gym-sets-input {
-  width: 100%;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 8px 10px;
-}
-.gym-edit-wrap .gym-sets-input {
-  font-size: 0.85rem !important;
-}
-.gym-edit-wrap .gym-name-input:focus,
-.gym-edit-wrap .gym-sets-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.gym-edit-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 2px;
-}
-.gym-edit-actions button {
-  flex: 1;
-  padding: 6px 8px;
-  font-size: 0.85rem;
-}
 
 /* ── Gym history chip delete ───────────────────────────────────────────────── */
 .gym-history-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-.gym-history-del {
-  background: transparent;
-  border: none;
-  color: var(--text2);
-  font-size: 0.95rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-  border-radius: 4px;
-  min-width: 18px;
-}
-.gym-history-del:hover,
-.gym-history-del:active {
-  color: var(--red);
-  background: rgba(224, 85, 85, 0.1);
 }
 .gym-modal-current {
   display: inline-flex;

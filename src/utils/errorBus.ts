@@ -11,7 +11,7 @@ export function reportError(context: string, err: unknown): void {
     title: context,
     message: detail,
     color: "red",
-    autoClose: false,
+    autoClose: 5000,
     withCloseButton: true,
   });
 }

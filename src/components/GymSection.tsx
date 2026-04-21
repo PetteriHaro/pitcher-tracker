@@ -1,4 +1,5 @@
-import { Checkbox } from "@mantine/core";
+import { Checkbox, Paper, Button, Group } from "@mantine/core";
+import { IconExternalLink } from "@tabler/icons-react";
 
 interface Props {
   gym: boolean;
@@ -8,23 +9,27 @@ interface Props {
 
 export default function GymSection({ gym, onToggle, onOpenGymTab }: Props) {
   return (
-    <div className="section">
-      <div className="section-title">Gym</div>
-      <div className="check-list">
-        <div className="check-row">
-          <Checkbox
-            size="md"
-            color="accent"
-            label="Done"
-            checked={gym}
-            onChange={(e) => onToggle(e.currentTarget.checked)}
-            style={{ flex: 1 }}
-          />
-          <button className="gym-open-btn" onClick={onOpenGymTab}>
-            Open Gym →
-          </button>
-        </div>
-      </div>
-    </div>
+    <Paper withBorder p="md" radius="md" mt="md" bg="dark.6">
+      <div className="section-title" style={{ marginBottom: 10 }}>Gym</div>
+      <Group justify="space-between" wrap="nowrap">
+        <Checkbox
+          size="md"
+          color="accent"
+          label="Done"
+          checked={gym}
+          onChange={(e) => onToggle(e.currentTarget.checked)}
+          style={{ flex: 1 }}
+        />
+        <Button
+          variant="subtle"
+          color="accent"
+          size="xs"
+          rightSection={<IconExternalLink size={14} />}
+          onClick={onOpenGymTab}
+        >
+          Open Gym
+        </Button>
+      </Group>
+    </Paper>
   );
 }
